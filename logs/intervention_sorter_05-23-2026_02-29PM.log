@@ -1,0 +1,3 @@
+2026-05-23 14:29:32 | INFO     | intervention_sorter | Logger initialized. Log file: C:\Users\Nick\Desktop\intervention_sorter\logs\intervention_sorter_05-23-2026_02-29PM.log
+2026-05-23 14:29:32 | INFO     | intervention_sorter | SettingsManager: No settings.json found — using config.py defaults.
+2026-05-23 14:29:32 | INFO     | intervention_sorter | GUI initialized: Academic Intervention Sorter v1.1.0

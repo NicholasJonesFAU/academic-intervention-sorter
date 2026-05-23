@@ -1,0 +1,4 @@
+2026-05-23 14:14:53 | INFO     | intervention_sorter | Logger initialized. Log file: C:\Users\Nick\Desktop\intervention_sorter\logs\intervention_sorter_05-23-2026_02-14PM.log
+2026-05-23 14:14:53 | INFO     | intervention_sorter | GUI initialized: Academic Intervention Sorter v1.1.0
+2026-05-23 14:15:08 | INFO     | intervention_sorter | DepartmentMapper: 226 course prefixes loaded.
+2026-05-23 14:15:08 | INFO     | intervention_sorter | ReportStatusProcessor: Loading 'progress_report_campaigns_report_20260523-2136182-3wpx58.csv'

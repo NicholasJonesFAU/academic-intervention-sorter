@@ -1,0 +1,33 @@
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Logger initialized. Log file: /home/claude/intervention_sorter/logs/intervention_sorter_20260523_153916.log
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Pipeline: Validation-only mode starting.
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Pipeline: Running validation checks...
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GradeProcessor: Loading progress report from 'progress_report.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GradeProcessor: 206 total rows loaded
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: Loading control file 'control.txt'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: Loaded group 'Athletes' — 12 IDs from 'athletes.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: Loaded group 'Probation' — 12 IDs from 'probation.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: Loaded group 'Honors' — 10 IDs from 'honors.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: Loaded group 'International' — 10 IDs from 'international.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GroupMatcher: 4 groups loaded from control file.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000052' found in groups: ['Athletes', 'Probation']. First-match wins.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000047' found in groups: ['Athletes', 'Probation']. First-match wins.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000044' found in groups: ['Probation', 'Honors']. First-match wins.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000032' found in groups: ['Probation', 'Honors']. First-match wins.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000002' found in groups: ['Honors', 'International']. First-match wins.
+2026-05-23 15:39:16 | WARNING  | intervention_sorter | GroupMatcher: Student ID 'Z10000045' found in groups: ['Honors', 'International']. First-match wins.
+2026-05-23 15:39:16 | INFO     | intervention_sorter | ============================================================
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Pipeline starting: 2026-05-23 15:39:16
+2026-05-23 15:39:16 | INFO     | intervention_sorter | ============================================================
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Pipeline: Validating input files...
+2026-05-23 15:39:16 | INFO     | intervention_sorter | Pipeline: Loading progress report...
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GradeProcessor: Loading progress report from 'progress_report.xlsx'
+2026-05-23 15:39:16 | INFO     | intervention_sorter | GradeProcessor: 206 total rows loaded
+2026-05-23 15:39:16 | ERROR    | intervention_sorter | Pipeline: UNHANDLED EXCEPTION
+Traceback (most recent call last):
+  File "/home/claude/intervention_sorter/processors/pipeline_controller.py", line 118, in run
+    at_risk_df, grade_metrics = grade_proc.load(inputs.progress_report)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/claude/intervention_sorter/processors/grade_processor.py", line 55, in load
+    raise ValueError("\n".join(validation.errors))
+ValueError: Progress Report (progress_report.xlsx) is missing required columns: ['Student Name', 'Student id', 'Full Course Name', 'Is at Risk']. Found columns: ['Student', 'Student ID', 'Course', 'At-Risk', 'Alert Reasons', 'Current Grade', 'Absences', 'Comments']
+

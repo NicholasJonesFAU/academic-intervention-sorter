@@ -1,0 +1,8 @@
+2026-05-23 14:20:37 | INFO     | intervention_sorter | Logger initialized. Log file: C:\Users\Nick\Desktop\intervention_sorter\logs\intervention_sorter_05-23-2026_02-20PM.log
+2026-05-23 14:20:38 | INFO     | intervention_sorter | GUI initialized: Academic Intervention Sorter v1.1.0
+2026-05-23 14:20:53 | INFO     | intervention_sorter | DepartmentMapper: 226 course prefixes loaded.
+2026-05-23 14:20:53 | INFO     | intervention_sorter | ReportStatusProcessor: Loading 'progress_report_campaigns_report_20260523-2136182-3wpx58.csv'
+2026-05-23 14:20:54 | WARNING  | intervention_sorter | ReportStatusProcessor: No email column found — email will be blank.
+2026-05-23 14:20:54 | INFO     | intervention_sorter | ReportStatusProcessor: 2337 section assignments loaded.
+2026-05-23 14:20:54 | INFO     | intervention_sorter | ReportStatusExporter: Building workbook → 'FacultyCompletion_05-23-2026_02-20PM.xlsx'
+2026-05-23 14:20:56 | INFO     | intervention_sorter | ReportStatusExporter: Saved → 'C:\Users\Nick\Desktop\intervention_sorter\output\FacultyCompletion_05-23-2026_02-20PM.xlsx'

@@ -1,0 +1,34 @@
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Logger initialized. Log file: /home/claude/intervention_sorter/logs/intervention_sorter_20260523_152523.log
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Validation-only mode starting.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Running validation checks...
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: Loading progress report from 'progress_report.xlsx'
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: 206 total rows loaded
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: 186 at-risk rows after filtering
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: Complete. 186 clean at-risk rows. 0 duplicates removed.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Aggregator: Starting aggregation of 186 rows.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Aggregator: Aggregation complete. 80 distinct students.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GroupMatcher: Loading control file 'control.txt'
+2026-05-23 15:25:23 | INFO     | intervention_sorter | ============================================================
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline starting: 2026-05-23 15:25:23
+2026-05-23 15:25:23 | INFO     | intervention_sorter | ============================================================
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Validating input files...
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Loading progress report...
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: Loading progress report from 'progress_report.xlsx'
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: 206 total rows loaded
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: 186 at-risk rows after filtering
+2026-05-23 15:25:23 | INFO     | intervention_sorter | GradeProcessor: Complete. 186 clean at-risk rows. 0 duplicates removed.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Aggregating student records...
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Aggregator: Starting aggregation of 186 rows.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Aggregator: Aggregation complete. 80 distinct students.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: 80 distinct at-risk students.
+2026-05-23 15:25:23 | INFO     | intervention_sorter | Pipeline: Merging contact information...
+2026-05-23 15:25:23 | INFO     | intervention_sorter | ContactProcessor: Loading contact report from 'contact_report.xlsx'
+2026-05-23 15:25:23 | ERROR    | intervention_sorter | Pipeline: UNHANDLED EXCEPTION
+Traceback (most recent call last):
+  File "/home/claude/intervention_sorter/processors/pipeline_controller.py", line 139, in run
+    contact_proc.load(inputs.contact_report)
+  File "/home/claude/intervention_sorter/processors/contact_processor.py", line 53, in load
+    df_raw = self._read_file(file_path)
+             ^^^^^^^^^^^^^^^
+AttributeError: 'ContactProcessor' object has no attribute '_read_file'
+
