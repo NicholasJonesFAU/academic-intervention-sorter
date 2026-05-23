@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from processors.pipeline_controller import PipelineController, PipelineInputs, PipelineResult
 from processors.midterm_pipeline_controller import MidtermPipelineController, MidtermPipelineInputs
 from processors.trend_analyzer import TrendAnalyzer
+from processors.campaign_manager import CampaignManager
 from processors.trend_exporter import TrendExporter
 from utils.settings_manager import get_settings, reload_settings, SETTINGS_PATH
 from processors.report_status_processor import ReportStatusProcessor
@@ -185,10 +186,15 @@ class InterventionSorterApp(tk.Tk):
         notebook.add(tab4, text="  📈  Campaign Trend  ")
         self._trend_tab = tab4
 
-        # Tab 5: Settings
+        # Tab 5: Campaign Manager
         tab5 = tk.Frame(notebook, bg=PANEL_BG)
-        notebook.add(tab5, text="  ⚙️  Settings  ")
-        self._settings_tab = tab5
+        notebook.add(tab5, text="  🗂️  Campaigns  ")
+        self._campaign_tab = tab5
+
+        # Tab 6: Settings
+        tab6 = tk.Frame(notebook, bg=PANEL_BG)
+        notebook.add(tab6, text="  ⚙️  Settings  ")
+        self._settings_tab = tab6
 
         content = tk.Frame(tab1, bg=PANEL_BG, padx=24, pady=16)
         content.pack(fill="both", expand=True)
@@ -454,6 +460,7 @@ class InterventionSorterApp(tk.Tk):
         self._build_report_status_tab()
         self._build_midterm_tab()
         self._build_trend_tab()
+        self._build_campaign_tab()
         self._build_settings_tab()
 
     def _build_report_status_tab(self):
@@ -741,6 +748,7 @@ class InterventionSorterApp(tk.Tk):
             )
             return
 
+        season = self._campaign_season_var.get().strip() if hasattr(self, "_campaign_season_var") else ""
         inputs = MidtermPipelineInputs(
             midterm_file=Path(paths["Midterm Grade File"]),
             contact_report=Path(paths["Contact Report"]),
@@ -748,6 +756,8 @@ class InterventionSorterApp(tk.Tk):
             group_dir=Path(paths["Group Files Folder"]),
             output_dir=Path(paths["Output Folder"]),
             exclude_previous=self._midterm_exclude_var.get(),
+            season=season,
+            checkpoint_type="Midterm",
         )
 
         self._midterm_processing = True
@@ -781,6 +791,7 @@ class InterventionSorterApp(tk.Tk):
         if result.success:
             self._midterm_log_write("\n\u2705 " + result.message, "success")
             self._midterm_log_write("\U0001f4c1 Output: " + str(result.output_path), "success")
+            if hasattr(self, '_refresh_campaign_tab'): self._refresh_campaign_tab()
             messagebox.showinfo(
                 "Midterm Sort Complete",
                 "\u2705 Midterm sort completed!\n\n" + result.message +
@@ -1026,6 +1037,176 @@ class InterventionSorterApp(tk.Tk):
         self._trend_log_box.insert("end", message + "\n", tag)
         self._trend_log_box.see("end")
         self._trend_log_box.config(state="disabled")
+
+
+    def _build_campaign_tab(self):
+        """Build the Campaign Manager tab."""
+        outer = tk.Frame(self._campaign_tab, bg=PANEL_BG, padx=24, pady=16)
+        outer.pack(fill="both", expand=True)
+
+        # ── Season selector row ───────────────────────────────────
+        top_frame = tk.Frame(outer, bg=PANEL_BG)
+        top_frame.pack(fill="x", pady=(0, 8))
+
+        section_label(top_frame, "Current Season").pack(side="left", anchor="w")
+
+        self._campaign_season_var = tk.StringVar(value="")
+        season_entry = tk.Entry(
+            top_frame, textvariable=self._campaign_season_var,
+            font=FONT_BOLD, width=28, relief="flat", bg="white",
+            highlightthickness=1, highlightbackground="#B0BEC5",
+            insertbackground=TEXT_FG,
+        )
+        season_entry.pack(side="left", padx=(12, 8), ipady=4)
+        tk.Label(top_frame, text="(e.g. Fall 2026)",
+                 bg=PANEL_BG, fg="#78909C", font=FONT_SUB).pack(side="left")
+
+        # ── Checkpoint type selector ──────────────────────────────
+        chk_frame = tk.Frame(outer, bg=PANEL_BG)
+        chk_frame.pack(fill="x", pady=(0, 8))
+        section_label(chk_frame, "Checkpoint Type").pack(side="left", anchor="w")
+
+        from utils.config import CHECKPOINT_TYPES
+        self._checkpoint_type_var = tk.StringVar(value=CHECKPOINT_TYPES[0])
+        for i, ct in enumerate(CHECKPOINT_TYPES):
+            tk.Radiobutton(
+                chk_frame, text=ct, variable=self._checkpoint_type_var,
+                value=ct, bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
+                activebackground=PANEL_BG, selectcolor="white",
+            ).pack(side="left", padx=(12 if i == 0 else 4, 0))
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+
+        # ── Action buttons ────────────────────────────────────────
+        btn_frame = tk.Frame(outer, bg=PANEL_BG)
+        btn_frame.pack(fill="x", pady=(0, 12))
+
+        tk.Button(
+            btn_frame, text="⟳  Refresh",
+            font=FONT_MAIN, bg="#2F5496", fg="white",
+            relief="flat", padx=14, pady=8, cursor="hand2",
+            command=self._refresh_campaign_tab,
+        ).pack(side="left", padx=(0, 8))
+
+        tk.Button(
+            btn_frame, text="🗑  Reset Season (Clear Assigned List)",
+            font=FONT_MAIN, bg=BTN_DANGER, fg="white",
+            relief="flat", padx=14, pady=8, cursor="hand2",
+            command=self._on_reset_season,
+        ).pack(side="left", padx=(0, 8))
+
+        # Assigned count badge
+        self._assigned_count_label = tk.Label(
+            btn_frame, text="", bg=PANEL_BG, fg="#2F5496", font=FONT_BOLD
+        )
+        self._assigned_count_label.pack(side="left", padx=(12, 0))
+
+        # ── Run history table ─────────────────────────────────────
+        section_label(outer, "Run History").pack(anchor="w", pady=(0, 6))
+
+        table_frame = tk.Frame(outer, bg=PANEL_BG)
+        table_frame.pack(fill="both", expand=True)
+
+        cols = ("Season", "Checkpoint", "Timestamp", "Processed",
+                "Assigned", "Unmatched", "Cumulative Assigned")
+        self._campaign_tree = ttk.Treeview(
+            table_frame, columns=cols, show="headings", height=12
+        )
+        col_widths = [140, 160, 150, 90, 90, 90, 140]
+        for col, w in zip(cols, col_widths):
+            self._campaign_tree.heading(col, text=col)
+            self._campaign_tree.column(col, width=w, anchor="center")
+        self._campaign_tree.column("Season", anchor="w")
+        self._campaign_tree.column("Checkpoint", anchor="w")
+
+        vsb = ttk.Scrollbar(table_frame, orient="vertical",
+                             command=self._campaign_tree.yview)
+        self._campaign_tree.configure(yscrollcommand=vsb.set)
+        self._campaign_tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        # ── Repeat students section ───────────────────────────────
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+        section_label(outer, "Repeat At-Risk Students").pack(anchor="w", pady=(0, 4))
+
+        repeat_frame = tk.Frame(outer, bg=PANEL_BG)
+        repeat_frame.pack(fill="x")
+
+        self._repeat_label = tk.Label(
+            repeat_frame, text="", bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
+            justify="left",
+        )
+        self._repeat_label.pack(anchor="w")
+
+        # Initial load
+        self._refresh_campaign_tab()
+
+    def _refresh_campaign_tab(self):
+        """Reload campaign data and refresh the display."""
+        cm = CampaignManager()
+
+        # Update assigned count badge
+        count = cm.assigned_count()
+        self._assigned_count_label.config(
+            text=f"📋 {count:,} students in assigned list"
+        )
+
+        # Populate tree
+        self._campaign_tree.delete(*self._campaign_tree.get_children())
+        runs = cm.all_runs()
+        for run in reversed(runs):  # Most recent first
+            self._campaign_tree.insert("", "end", values=(
+                run.season,
+                run.checkpoint_type,
+                run.timestamp,
+                f"{run.students_processed:,}",
+                f"{run.students_assigned:,}",
+                f"{run.students_unmatched:,}",
+                f"{run.assigned_total:,}",
+            ))
+
+        # Alternate row colors
+        for i, item in enumerate(self._campaign_tree.get_children()):
+            tag = "even" if i % 2 == 0 else "odd"
+            self._campaign_tree.item(item, tags=(tag,))
+        self._campaign_tree.tag_configure("even", background="#F4F6FB")
+        self._campaign_tree.tag_configure("odd",  background="#FFFFFF")
+
+        # Repeat students
+        repeats = cm.repeat_students(min_appearances=2)
+        if repeats:
+            total_repeats = len(repeats)
+            max_count = max(repeats.values())
+            self._repeat_label.config(
+                text=f"{total_repeats:,} students have appeared in more than one run "
+                     f"(max: {max_count} appearances). "
+                     f"These students may need elevated intervention.",
+                fg=WARNING_COLOR,
+            )
+        else:
+            self._repeat_label.config(
+                text="No repeat at-risk students detected across runs.",
+                fg="#2E7D32",
+            )
+
+    def _on_reset_season(self):
+        """Clear assigned_students.txt after confirmation."""
+        season = self._campaign_season_var.get().strip() or "current season"
+        if not messagebox.askyesno(
+            "Reset Season",
+            f"This will clear the assigned students list for '{season}'.\n\n"
+            "All students will be eligible for assignment on the next run.\n\n"
+            "This cannot be undone. Continue?",
+        ):
+            return
+        cm = CampaignManager()
+        cleared = cm.reset_season(season)
+        self._refresh_campaign_tab()
+        messagebox.showinfo(
+            "Season Reset",
+            f"✅ Cleared {cleared:,} student IDs from the assigned list.\n"
+            f"Ready to start a new season.",
+        )
 
     def _build_settings_tab(self):
         """Build the Settings tab — column mapping editor."""

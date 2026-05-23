@@ -336,3 +336,11 @@ TRAJECTORY_COLORS = {
     "pr2_only":         "#4527A0",   # Deep purple
     "pr1_pr2":          "#E65100",   # Orange
 }
+
+# ---------------------------------------------------------------------------
+# Campaign Manager
+# ---------------------------------------------------------------------------
+CAMPAIGNS_FILENAME = "campaigns.json"
+CAMPAIGNS_PATH = BASE_DIR / CAMPAIGNS_FILENAME
+
+CHECKPOINT_TYPES = ["Progress Report 1", "Midterm", "Progress Report 2"]

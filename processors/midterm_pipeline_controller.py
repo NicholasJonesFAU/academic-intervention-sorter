@@ -39,6 +39,7 @@ from utils.validation import (
     ValidationResult,
 )
 from utils.logging_utils import QALog, setup_logger
+from processors.campaign_manager import CampaignManager
 
 logger = logging.getLogger("intervention_sorter")
 
@@ -51,6 +52,8 @@ class MidtermPipelineInputs:
     group_dir:      Path
     output_dir:     Path
     exclude_previous: bool = False
+    season: str = ""
+    checkpoint_type: str = "Midterm"
 
 
 @dataclass
@@ -182,6 +185,18 @@ class MidtermPipelineController:
 
             # Append to assigned students
             self._append_assigned_students(group_data, group_order)
+
+            # Record campaign run
+            if inputs.season:
+                cm = CampaignManager()
+                cm.record_run(
+                    season=inputs.season,
+                    checkpoint_type=inputs.checkpoint_type,
+                    students_processed=len(students_df),
+                    students_assigned=total_assigned,
+                    students_unmatched=total_unmatched,
+                    output_file=str(output_path),
+                )
 
             summary_lines = [
                 f"Processing complete in {duration:.2f}s",
