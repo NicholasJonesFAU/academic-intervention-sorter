@@ -252,3 +252,57 @@ CONTROL_FILE_ENCODINGS = ["utf-8-sig", "utf-8", "latin-1", "cp1252"]
 # ---------------------------------------------------------------------------
 ASSIGNED_STUDENTS_FILENAME = "assigned_students.txt"
 ASSIGNED_STUDENTS_PATH = OUTPUT_DIR / ASSIGNED_STUDENTS_FILENAME
+
+# ---------------------------------------------------------------------------
+# Midterm grade report column mapping
+# ---------------------------------------------------------------------------
+MIDTERM_COLUMN_MAP = {
+    "student_id":     "Z#",
+    "last_name":      "LASTNAME",
+    "first_name":     "FIRSTNAME",
+    "email":          "FAU_EMAIL",
+    "college":        "COLLEGE",
+    "major":          "MAJOR",
+    "classification": "CLASSIFICATION",
+    "course_prefix":  "COURSE_PREFIX",
+    "course_number":  "COURSE_NUMBER",
+    "course_name":    "COURSE",
+    "section":        "COURSE_SECTION_NO",
+    "credit_hrs":     "CREDIT_HR",
+    "midterm_grade":  "MIDTERMGRADE",
+}
+
+MIDTERM_REQUIRED_COLUMNS = [
+    MIDTERM_COLUMN_MAP["student_id"],
+    MIDTERM_COLUMN_MAP["last_name"],
+    MIDTERM_COLUMN_MAP["first_name"],
+    MIDTERM_COLUMN_MAP["course_prefix"],
+    MIDTERM_COLUMN_MAP["course_number"],
+    MIDTERM_COLUMN_MAP["midterm_grade"],
+]
+
+# Grades that trigger outreach — C- and below only
+MIDTERM_AT_RISK_GRADES = {
+    "c-", "d+", "d", "d-", "f",
+}
+
+# Output columns for midterm tabs
+MIDTERM_OUTPUT_COLUMNS = [
+    "Student Name",
+    "Student ID",
+    "Phone Number",
+    "Email",
+    "College",
+    "Major",
+    "Classification",
+    "Risk Course Count",
+    "Course Numbers",
+    "Courses",
+    "Grades",
+    "Matched Group",
+    "Match Source",
+    "Processing Notes",
+]
+
+# Output filename pattern for midterm
+MIDTERM_OUTPUT_FILENAME_PATTERN = "MidtermSort_{timestamp}.xlsx"

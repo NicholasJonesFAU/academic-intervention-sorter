@@ -55,8 +55,8 @@ class ContactProcessor:
         df["Phone Number"] = self._resolve_phone(df)
 
         # Log which phone columns were found
-        found = [c for c in PHONE_FALLBACK_COLUMNS if c in df_raw.columns]
-        missing = [c for c in PHONE_FALLBACK_COLUMNS if c not in df_raw.columns]
+        found = [c for c in get_settings().phone_fallback_columns if c in df_raw.columns]
+        missing = [c for c in get_settings().phone_fallback_columns if c not in df_raw.columns]
         if found:
             logger.info("ContactProcessor: Phone columns found: %s", found)
         if missing:

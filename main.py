@@ -18,6 +18,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 sys.path.insert(0, str(Path(__file__).parent))
 
 from processors.pipeline_controller import PipelineController, PipelineInputs, PipelineResult
+from processors.midterm_pipeline_controller import MidtermPipelineController, MidtermPipelineInputs
 from utils.settings_manager import get_settings, reload_settings, SETTINGS_PATH
 from processors.report_status_processor import ReportStatusProcessor
 from processors.report_status_exporter import ReportStatusExporter
@@ -130,6 +131,10 @@ class InterventionSorterApp(tk.Tk):
         self.resizable(True, True)
 
         self._processing = False
+        self._processing = False
+        self._midterm_processing = False
+        self._exclude_var = tk.BooleanVar(value=False)
+        self._midterm_exclude_var = tk.BooleanVar(value=False)
         self._build_ui()
         self._set_defaults()
         self._report_processing = False
@@ -161,16 +166,21 @@ class InterventionSorterApp(tk.Tk):
 
         # Tab 1: Intervention Sorter
         tab1 = tk.Frame(notebook, bg=PANEL_BG)
-        notebook.add(tab1, text="  📋  Intervention Sorter  ")
+        notebook.add(tab1, text="  📋  Progress Report Sorter  ")
 
         # Tab 2: Faculty Report Status
         tab2 = tk.Frame(notebook, bg=PANEL_BG)
         notebook.add(tab2, text="  📊  Faculty Report Status  ")
 
-        # Tab 3: Settings
+        # Tab 3: Midterm Sorter
         tab3 = tk.Frame(notebook, bg=PANEL_BG)
-        notebook.add(tab3, text="  ⚙️  Settings  ")
-        self._settings_tab = tab3
+        notebook.add(tab3, text="  📝  Midterm Sorter  ")
+        self._midterm_tab = tab3
+
+        # Tab 4: Settings
+        tab4 = tk.Frame(notebook, bg=PANEL_BG)
+        notebook.add(tab4, text="  ⚙️  Settings  ")
+        self._settings_tab = tab4
 
         content = tk.Frame(tab1, bg=PANEL_BG, padx=24, pady=16)
         content.pack(fill="both", expand=True)
@@ -434,6 +444,7 @@ class InterventionSorterApp(tk.Tk):
         """Pre-fill output folder to the default output directory."""
         self._output_picker.path = str(OUTPUT_DIR)
         self._build_report_status_tab()
+        self._build_midterm_tab()
         self._build_settings_tab()
 
     def _build_report_status_tab(self):
@@ -593,6 +604,205 @@ class InterventionSorterApp(tk.Tk):
             self._report_log("\n\u274c Failed: " + message[:200], "error")
             messagebox.showerror("Report Failed", "\u274c Report failed:\n\n" + message[:400])
 
+
+
+    def _build_midterm_tab(self):
+        """Build the Midterm Sorter tab UI."""
+        tab = self._midterm_tab
+        outer = tk.Frame(tab, bg=PANEL_BG, padx=24, pady=16)
+        outer.pack(fill="both", expand=True)
+
+        section_label(outer, "Input Files").pack(anchor="w", pady=(0, 8))
+
+        pf = tk.Frame(outer, bg=PANEL_BG)
+        pf.pack(fill="x")
+
+        self._midterm_file_picker = FilePickerRow(
+            pf, label="Midterm Grade File:",
+            filetypes=[("Excel/CSV Files", "*.xlsx *.xls *.csv"), ("All Files", "*.*")],
+            tooltip="Canvas midterm export — xlsx or csv",
+        )
+        self._midterm_file_picker.pack(fill="x", pady=4)
+
+        self._midterm_contact_picker = FilePickerRow(
+            pf, label="Contact Report:",
+            filetypes=[("Excel Files", "*.xlsx *.xls"), ("All Files", "*.*")],
+            tooltip="Same contact report used in Progress Report Sorter",
+        )
+        self._midterm_contact_picker.pack(fill="x", pady=4)
+
+        self._midterm_control_picker = FilePickerRow(
+            pf, label="Group Control File:",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
+            tooltip="TXT file: TabName|filename.xlsx  (one per line, ordered by priority)",
+        )
+        self._midterm_control_picker.pack(fill="x", pady=4)
+
+        self._midterm_group_dir_picker = FilePickerRow(
+            pf, label="Group Files Folder:",
+            filetypes=[], is_directory=True,
+            tooltip="Folder containing group Excel files listed in the control file",
+        )
+        self._midterm_group_dir_picker.pack(fill="x", pady=4)
+
+        self._midterm_output_picker = FilePickerRow(
+            pf, label="Output Folder:",
+            filetypes=[], is_directory=True,
+            tooltip="Where the output workbook will be saved",
+        )
+        self._midterm_output_picker.pack(fill="x", pady=4)
+        self._midterm_output_picker.path = str(OUTPUT_DIR)
+
+        # Exclude checkbox
+        chk_frame = tk.Frame(outer, bg=PANEL_BG)
+        chk_frame.pack(fill="x", pady=(8, 0))
+        tk.Checkbutton(
+            chk_frame,
+            text="Exclude students already assigned in a previous run this campaign",
+            variable=self._midterm_exclude_var,
+            bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
+            activebackground=PANEL_BG, selectcolor="white", cursor="hand2",
+        ).pack(side="left")
+        tk.Label(
+            chk_frame, text="(reads/writes assigned_students.txt in output folder)",
+            bg=PANEL_BG, fg="#78909C", font=FONT_SUB,
+        ).pack(side="left", padx=(8, 0))
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=14)
+
+        # Buttons — pack BEFORE the log box so they're always visible
+        btn_frame = tk.Frame(outer, bg=PANEL_BG)
+        btn_frame.pack(fill="x", pady=(0, 8))
+
+        self._midterm_run_btn = tk.Button(
+            btn_frame,
+            text="▶  Run Midterm Sort",
+            font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
+            relief="flat", padx=20, pady=10, cursor="hand2",
+            command=self._on_run_midterm,
+        )
+        self._midterm_run_btn.pack(side="left", padx=(0, 10))
+
+        tk.Button(
+            btn_frame,
+            text="⟳  Clear",
+            font=FONT_MAIN, bg="#78909C", fg="white",
+            relief="flat", padx=14, pady=10, cursor="hand2",
+            command=lambda: self._midterm_clear_log(),
+        ).pack(side="left")
+
+        self._midterm_progress_bar = ttk.Progressbar(
+            outer, maximum=100, mode="indeterminate"
+        )
+        self._midterm_progress_bar.pack(fill="x", pady=(0, 8))
+
+        section_label(outer, "Processing Log").pack(anchor="w", pady=(4, 4))
+
+        self._midterm_log_box = scrolledtext.ScrolledText(
+            outer, height=10, font=FONT_MONO,
+            bg="#0D1117", fg="#C9D1D9",
+            relief="flat", wrap="word",
+        )
+        self._midterm_log_box.pack(fill="both", expand=True)
+        self._midterm_log_box.config(state="disabled")
+        self._midterm_log_box.tag_config("success", foreground="#4CAF50")
+        self._midterm_log_box.tag_config("error",   foreground="#F44336")
+        self._midterm_log_box.tag_config("warning", foreground="#FF9800")
+        self._midterm_log_box.tag_config("info",    foreground="#90CAF9")
+        self._midterm_log_box.tag_config("step",    foreground="#CE93D8")
+
+    def _on_run_midterm(self):
+        if self._midterm_processing:
+            return
+        errors = []
+        paths = {
+            "Midterm Grade File": self._midterm_file_picker.path,
+            "Contact Report":     self._midterm_contact_picker.path,
+            "Group Control File": self._midterm_control_picker.path,
+            "Group Files Folder": self._midterm_group_dir_picker.path,
+            "Output Folder":      self._midterm_output_picker.path,
+        }
+        for label, val in paths.items():
+            if not val:
+                errors.append(f"  {label} is required.")
+        if errors:
+            messagebox.showerror(
+                "Missing Inputs",
+                "Please provide all required files:\n\n" + "\n".join(errors)
+            )
+            return
+
+        inputs = MidtermPipelineInputs(
+            midterm_file=Path(paths["Midterm Grade File"]),
+            contact_report=Path(paths["Contact Report"]),
+            control_file=Path(paths["Group Control File"]),
+            group_dir=Path(paths["Group Files Folder"]),
+            output_dir=Path(paths["Output Folder"]),
+            exclude_previous=self._midterm_exclude_var.get(),
+        )
+
+        self._midterm_processing = True
+        self._midterm_run_btn.config(state="disabled")
+        self._midterm_progress_bar.start(12)
+        self._midterm_log_write("=" * 55, "info")
+        self._midterm_log_write("STARTING MIDTERM SORT", "step")
+        self._midterm_log_write("=" * 55, "info")
+
+        import threading
+        def _worker():
+            try:
+                controller = MidtermPipelineController(
+                    progress_callback=lambda msg: self.after(
+                        0, self._midterm_log_write, msg, "step"
+                    )
+                )
+                result = controller.run(inputs)
+                self.after(0, self._on_midterm_complete, result)
+            except Exception:
+                import traceback
+                self.after(0, self._on_midterm_error, traceback.format_exc())
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_midterm_complete(self, result):
+        self._midterm_processing = False
+        self._midterm_run_btn.config(state="normal")
+        self._midterm_progress_bar.stop()
+        if result.success:
+            self._midterm_log_write("\n\u2705 " + result.message, "success")
+            self._midterm_log_write("\U0001f4c1 Output: " + str(result.output_path), "success")
+            messagebox.showinfo(
+                "Midterm Sort Complete",
+                "\u2705 Midterm sort completed!\n\n" + result.message +
+                "\n\nOutput:\n" + str(result.output_path),
+            )
+        else:
+            self._midterm_log_write("\n\u274c " + result.message, "error")
+            for e in result.errors[:3]:
+                self._midterm_log_write("  " + e[:300], "error")
+            messagebox.showerror(
+                "Midterm Sort Failed",
+                "\u274c Processing failed:\n\n" + result.message +
+                ("\n\n" + result.errors[0][:400] if result.errors else ""),
+            )
+
+    def _on_midterm_error(self, error_text: str):
+        self._midterm_processing = False
+        self._midterm_run_btn.config(state="normal")
+        self._midterm_progress_bar.stop()
+        self._midterm_log_write("\n\u274c Unexpected error:\n" + error_text[:400], "error")
+        messagebox.showerror("Unexpected Error", error_text[:600])
+
+    def _midterm_clear_log(self):
+        self._midterm_log_box.config(state="normal")
+        self._midterm_log_box.delete("1.0", "end")
+        self._midterm_log_box.config(state="disabled")
+
+    def _midterm_log_write(self, message: str, tag: str = "info"):
+        self._midterm_log_box.config(state="normal")
+        self._midterm_log_box.insert("end", message + "\n", tag)
+        self._midterm_log_box.see("end")
+        self._midterm_log_box.config(state="disabled")
 
     def _build_settings_tab(self):
         """Build the Settings tab — column mapping editor."""
