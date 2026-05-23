@@ -21,7 +21,7 @@ import random
 SEED = 42
 random.seed(SEED)
 
-TEST_DIR = Path(__file__).parent / "test_data"
+TEST_DIR = Path(__file__).parent / "sample_data"
 GROUP_DIR = TEST_DIR / "groups"
 TEST_DIR.mkdir(exist_ok=True)
 GROUP_DIR.mkdir(exist_ok=True)

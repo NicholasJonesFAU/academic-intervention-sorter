@@ -99,3 +99,22 @@ __pycache__/
 *.xlsx
 *.xls
 *.csv
+
+# Block real institutional data by default
+inputs/
+logs/
+output/
+release/
+dist/
+build/
+crash_logs/
+*.xlsx
+*.xls
+*.csv
+
+# Allow safe fake demo data
+!sample_data/
+!sample_data/**
+!sample_data/*.xlsx
+!sample_data/*.csv
+!sample_data/*.txt
