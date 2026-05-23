@@ -55,7 +55,8 @@ class PipelineInputs:
     group_dir: Path
     output_dir: Path
     exclude_previous: bool = False
-
+    season: str = ""
+    checkpoint_type: str = "Progress Report"
 
 @dataclass
 class PipelineResult:
