@@ -306,3 +306,33 @@ MIDTERM_OUTPUT_COLUMNS = [
 
 # Output filename pattern for midterm
 MIDTERM_OUTPUT_FILENAME_PATTERN = "MidtermSort_{timestamp}.xlsx"
+
+# ---------------------------------------------------------------------------
+# Trend / Campaign Cycle Report
+# ---------------------------------------------------------------------------
+TREND_OUTPUT_FILENAME_PATTERN = "CampaignTrend_{timestamp}.xlsx"
+
+# Student trajectory labels
+TRAJECTORY_LABELS = {
+    "persistent":       "Persistent (All 3)",
+    "recovered_early":  "Recovered Early (PR1 only)",
+    "recovered_late":   "Recovered Late (PR1+Mid only)",
+    "relapsed":         "Relapsed (PR1+PR2, not Mid)",
+    "new_midterm":      "New at Midterm",
+    "new_pr2":          "New at PR2",
+    "midterm_only":     "Midterm Only",
+    "pr2_only":         "PR2 Only",
+    "pr1_pr2":          "PR1 and PR2 (not Mid)",
+}
+
+TRAJECTORY_COLORS = {
+    "persistent":       "#C62828",   # Dark red
+    "recovered_early":  "#2E7D32",   # Dark green
+    "recovered_late":   "#388E3C",   # Medium green
+    "relapsed":         "#F57F17",   # Amber
+    "new_midterm":      "#1565C0",   # Blue
+    "new_pr2":          "#6A1B9A",   # Purple
+    "midterm_only":     "#00838F",   # Teal
+    "pr2_only":         "#4527A0",   # Deep purple
+    "pr1_pr2":          "#E65100",   # Orange
+}

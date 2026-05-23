@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from processors.pipeline_controller import PipelineController, PipelineInputs, PipelineResult
 from processors.midterm_pipeline_controller import MidtermPipelineController, MidtermPipelineInputs
+from processors.trend_analyzer import TrendAnalyzer
+from processors.trend_exporter import TrendExporter
 from utils.settings_manager import get_settings, reload_settings, SETTINGS_PATH
 from processors.report_status_processor import ReportStatusProcessor
 from processors.report_status_exporter import ReportStatusExporter
@@ -133,6 +135,7 @@ class InterventionSorterApp(tk.Tk):
         self._processing = False
         self._processing = False
         self._midterm_processing = False
+        self._trend_processing = False
         self._exclude_var = tk.BooleanVar(value=False)
         self._midterm_exclude_var = tk.BooleanVar(value=False)
         self._build_ui()
@@ -177,10 +180,15 @@ class InterventionSorterApp(tk.Tk):
         notebook.add(tab3, text="  📝  Midterm Sorter  ")
         self._midterm_tab = tab3
 
-        # Tab 4: Settings
+        # Tab 4: Campaign Trend
         tab4 = tk.Frame(notebook, bg=PANEL_BG)
-        notebook.add(tab4, text="  ⚙️  Settings  ")
-        self._settings_tab = tab4
+        notebook.add(tab4, text="  📈  Campaign Trend  ")
+        self._trend_tab = tab4
+
+        # Tab 5: Settings
+        tab5 = tk.Frame(notebook, bg=PANEL_BG)
+        notebook.add(tab5, text="  ⚙️  Settings  ")
+        self._settings_tab = tab5
 
         content = tk.Frame(tab1, bg=PANEL_BG, padx=24, pady=16)
         content.pack(fill="both", expand=True)
@@ -445,6 +453,7 @@ class InterventionSorterApp(tk.Tk):
         self._output_picker.path = str(OUTPUT_DIR)
         self._build_report_status_tab()
         self._build_midterm_tab()
+        self._build_trend_tab()
         self._build_settings_tab()
 
     def _build_report_status_tab(self):
@@ -766,6 +775,7 @@ class InterventionSorterApp(tk.Tk):
 
     def _on_midterm_complete(self, result):
         self._midterm_processing = False
+        self._trend_processing = False
         self._midterm_run_btn.config(state="normal")
         self._midterm_progress_bar.stop()
         if result.success:
@@ -788,6 +798,7 @@ class InterventionSorterApp(tk.Tk):
 
     def _on_midterm_error(self, error_text: str):
         self._midterm_processing = False
+        self._trend_processing = False
         self._midterm_run_btn.config(state="normal")
         self._midterm_progress_bar.stop()
         self._midterm_log_write("\n\u274c Unexpected error:\n" + error_text[:400], "error")
@@ -803,6 +814,218 @@ class InterventionSorterApp(tk.Tk):
         self._midterm_log_box.insert("end", message + "\n", tag)
         self._midterm_log_box.see("end")
         self._midterm_log_box.config(state="disabled")
+
+
+    def _build_trend_tab(self):
+        """Build the Campaign Trend Report tab."""
+        outer = tk.Frame(self._trend_tab, bg=PANEL_BG, padx=24, pady=16)
+        outer.pack(fill="both", expand=True)
+
+        # Description
+        tk.Label(
+            outer,
+            text="Select your three output workbooks in order to analyze how the "
+                 "at-risk population moved across the semester cycle.",
+            bg=PANEL_BG, fg="#546E7A", font=FONT_SUB,
+            wraplength=700, justify="left",
+        ).pack(anchor="w", pady=(0, 12))
+
+        section_label(outer, "Select Output Workbooks").pack(anchor="w", pady=(0, 8))
+
+        pf = tk.Frame(outer, bg=PANEL_BG)
+        pf.pack(fill="x")
+
+        self._trend_pr1_picker = FilePickerRow(
+            pf, label="Progress Report 1:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="First progress report output (InterventionSort_...xlsx)",
+        )
+        self._trend_pr1_picker.pack(fill="x", pady=4)
+
+        self._trend_mid_picker = FilePickerRow(
+            pf, label="Midterm:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="Midterm sort output (MidtermSort_...xlsx)",
+        )
+        self._trend_mid_picker.pack(fill="x", pady=4)
+
+        self._trend_pr2_picker = FilePickerRow(
+            pf, label="Progress Report 2:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="Second progress report output (InterventionSort_...xlsx)",
+        )
+        self._trend_pr2_picker.pack(fill="x", pady=4)
+
+        self._trend_output_picker = FilePickerRow(
+            pf, label="Output Folder:",
+            filetypes=[], is_directory=True,
+            tooltip="Where the trend report will be saved",
+        )
+        self._trend_output_picker.pack(fill="x", pady=4)
+        self._trend_output_picker.path = str(OUTPUT_DIR)
+
+        # Optional labels
+        lbl_frame = tk.Frame(outer, bg=PANEL_BG)
+        lbl_frame.pack(fill="x", pady=(8, 0))
+        tk.Label(lbl_frame, text="Optional — customize checkpoint labels in the report:",
+                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB).pack(anchor="w")
+
+        name_row = tk.Frame(outer, bg=PANEL_BG)
+        name_row.pack(fill="x", pady=4)
+        for i, (label, default, attr) in enumerate([
+            ("PR1 Label:",     "Progress Report 1", "_trend_pr1_label"),
+            ("Midterm Label:", "Midterm",            "_trend_mid_label"),
+            ("PR2 Label:",     "Progress Report 2", "_trend_pr2_label"),
+        ]):
+            tk.Label(name_row, text=label, bg=PANEL_BG, fg=TEXT_FG,
+                     font=FONT_MAIN, width=14, anchor="w").grid(row=0, column=i*2, padx=(0,4))
+            var = tk.StringVar(value=default)
+            setattr(self, attr, var)
+            tk.Entry(name_row, textvariable=var, font=FONT_MAIN, width=22,
+                     relief="flat", bg="white",
+                     highlightthickness=1, highlightbackground="#B0BEC5",
+                     insertbackground=TEXT_FG).grid(row=0, column=i*2+1, padx=(0,16), ipady=3)
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=14)
+
+        btn_frame = tk.Frame(outer, bg=PANEL_BG)
+        btn_frame.pack(fill="x", pady=(0, 8))
+
+        self._trend_run_btn = tk.Button(
+            btn_frame,
+            text="▶  Generate Trend Report",
+            font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
+            relief="flat", padx=20, pady=10, cursor="hand2",
+            command=self._on_run_trend,
+        )
+        self._trend_run_btn.pack(side="left", padx=(0, 10))
+
+        tk.Button(
+            btn_frame, text="⟳  Clear",
+            font=FONT_MAIN, bg="#78909C", fg="white",
+            relief="flat", padx=14, pady=10, cursor="hand2",
+            command=lambda: self._trend_clear_log(),
+        ).pack(side="left")
+
+        self._trend_progress_bar = ttk.Progressbar(
+            outer, maximum=100, mode="indeterminate"
+        )
+        self._trend_progress_bar.pack(fill="x", pady=(0, 8))
+
+        section_label(outer, "Processing Log").pack(anchor="w", pady=(4, 4))
+
+        self._trend_log_box = scrolledtext.ScrolledText(
+            outer, height=8, font=FONT_MONO,
+            bg="#0D1117", fg="#C9D1D9",
+            relief="flat", wrap="word",
+        )
+        self._trend_log_box.pack(fill="both", expand=True)
+        self._trend_log_box.config(state="disabled")
+        self._trend_log_box.tag_config("success", foreground="#4CAF50")
+        self._trend_log_box.tag_config("error",   foreground="#F44336")
+        self._trend_log_box.tag_config("info",    foreground="#90CAF9")
+        self._trend_log_box.tag_config("step",    foreground="#CE93D8")
+
+    def _on_run_trend(self):
+        if self._trend_processing:
+            return
+
+        paths = {
+            "PR1":    self._trend_pr1_picker.path,
+            "Mid":    self._trend_mid_picker.path,
+            "PR2":    self._trend_pr2_picker.path,
+            "Output": self._trend_output_picker.path,
+        }
+
+        # At least one workbook required; output always required
+        if not any([paths["PR1"], paths["Mid"], paths["PR2"]]):
+            messagebox.showerror("Missing Input",
+                "Please select at least one output workbook.")
+            return
+        if not paths["Output"]:
+            messagebox.showerror("Missing Input", "Please select an output folder.")
+            return
+
+        self._trend_processing = True
+        self._trend_run_btn.config(state="disabled")
+        self._trend_progress_bar.start(12)
+        self._trend_log_write("=" * 55, "info")
+        self._trend_log_write("GENERATING CAMPAIGN TREND REPORT", "step")
+        self._trend_log_write("=" * 55, "info")
+
+        pr1_path  = Path(paths["PR1"])  if paths["PR1"]  else None
+        mid_path  = Path(paths["Mid"])  if paths["Mid"]  else None
+        pr2_path  = Path(paths["PR2"])  if paths["PR2"]  else None
+        out_dir   = Path(paths["Output"])
+        pr1_label = self._trend_pr1_label.get().strip() or "PR1"
+        mid_label = self._trend_mid_label.get().strip() or "Midterm"
+        pr2_label = self._trend_pr2_label.get().strip() or "PR2"
+
+        import threading
+        def _worker():
+            try:
+                from datetime import datetime
+                from utils.config import TREND_OUTPUT_FILENAME_PATTERN, LOG_DATE_FORMAT
+                timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
+                out_path  = out_dir / TREND_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp)
+                out_dir.mkdir(parents=True, exist_ok=True)
+
+                self.after(0, self._trend_log_write, "Loading workbooks...", "step")
+                analyzer = TrendAnalyzer()
+                analyzer.load(pr1_path, mid_path, pr2_path)
+
+                overall = analyzer.overall_stats()
+                self.after(0, self._trend_log_write,
+                    f"Total unique at-risk students: {overall['total_unique_students']:,}", "info")
+                if pr1_path:
+                    self.after(0, self._trend_log_write,
+                        f"{pr1_label}: {overall['pr1_count']:,} students", "info")
+                if mid_path:
+                    self.after(0, self._trend_log_write,
+                        f"{mid_label}: {overall['mid_count']:,} students", "info")
+                if pr2_path:
+                    self.after(0, self._trend_log_write,
+                        f"{pr2_label}: {overall['pr2_count']:,} students", "info")
+
+                self.after(0, self._trend_log_write, "Building report with charts...", "step")
+                exporter = TrendExporter()
+                exporter.export(analyzer, out_path, pr1_label, mid_label, pr2_label)
+
+                self.after(0, self._on_trend_complete, True, str(out_path), overall)
+            except Exception:
+                import traceback
+                self.after(0, self._on_trend_complete, False, traceback.format_exc(), {})
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_trend_complete(self, success, message, overall):
+        self._trend_processing = False
+        self._trend_run_btn.config(state="normal")
+        self._trend_progress_bar.stop()
+        if success:
+            self._trend_log_write("\n\u2705 Report generated!", "success")
+            self._trend_log_write("\U0001f4c1 Output: " + message, "success")
+            messagebox.showinfo(
+                "Trend Report Complete",
+                "\u2705 Campaign Trend Report generated!\n\n"
+                f"Total unique students: {overall.get('total_unique_students', 0):,}\n"
+                f"Output:\n{message}",
+            )
+        else:
+            self._trend_log_write("\n\u274c Failed:\n" + message[:400], "error")
+            messagebox.showerror("Trend Report Failed",
+                "\u274c Report generation failed:\n\n" + message[:500])
+
+    def _trend_clear_log(self):
+        self._trend_log_box.config(state="normal")
+        self._trend_log_box.delete("1.0", "end")
+        self._trend_log_box.config(state="disabled")
+
+    def _trend_log_write(self, message, tag="info"):
+        self._trend_log_box.config(state="normal")
+        self._trend_log_box.insert("end", message + "\n", tag)
+        self._trend_log_box.see("end")
+        self._trend_log_box.config(state="disabled")
 
     def _build_settings_tab(self):
         """Build the Settings tab — column mapping editor."""
