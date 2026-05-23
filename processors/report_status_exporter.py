@@ -164,7 +164,7 @@ class ReportStatusExporter:
         chart_img = self._make_bar_chart(
             df, label_col="College",
             title="Submission Rate by College",
-            figsize=(10, max(4, len(df) * 0.5 + 1)),
+            figsize=(7, max(3, len(df) * 0.35 + 1)),
         )
         ws.add_image(chart_img, f"A{len(df) + 5}")
 
@@ -181,7 +181,7 @@ class ReportStatusExporter:
         chart_img = self._make_bar_chart(
             df, label_col="Department",
             title="Submission Rate by Department",
-            figsize=(12, max(6, len(df) * 0.35 + 1)),
+            figsize=(8, max(4, len(df) * 0.3 + 1)),
         )
         ws.add_image(chart_img, f"A{len(df) + 5}")
 
@@ -282,11 +282,13 @@ class ReportStatusExporter:
     def _chart_to_image(self, fig) -> XLImage:
         """Convert matplotlib figure to openpyxl Image object."""
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=96, bbox_inches="tight",
                     facecolor=COLOR_BG)
         buf.seek(0)
         plt.close(fig)
         img = XLImage(buf)
+        img.width  = 480
+        img.height = 300
         return img
 
     def _make_donut_chart(
@@ -296,7 +298,7 @@ class ReportStatusExporter:
         pct: float,
         title: str,
     ) -> XLImage:
-        fig, ax = plt.subplots(figsize=(5, 4), facecolor=COLOR_BG)
+        fig, ax = plt.subplots(figsize=(4, 3.2), facecolor=COLOR_BG)
         ax.set_facecolor(COLOR_BG)
 
         sizes  = [submitted, not_submitted] if (submitted + not_submitted) > 0 else [1, 0]

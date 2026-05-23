@@ -146,7 +146,7 @@ class TrendExporter:
         self._write_table(ws, flow_df, HEADER_FLOW, "Student Flow Between Checkpoints")
 
         # Stacked bar: carried forward + new at each checkpoint
-        fig, ax = plt.subplots(figsize=(9, 4), facecolor=COLOR_BG)
+        fig, ax = plt.subplots(figsize=(7, 3.5), facecolor=COLOR_BG)
         ax.set_facecolor(COLOR_BG)
 
         transitions = flow_df["Transition"].tolist()
@@ -188,7 +188,7 @@ class TrendExporter:
         key_map = {v: k for k, v in TRAJECTORY_LABELS.items()}
         colors = [TRAJECTORY_COLORS.get(key_map.get(l, ""), "#90CAF9") for l in labels]
 
-        fig, ax = plt.subplots(figsize=(10, max(4, len(labels) * 0.55 + 1)),
+        fig, ax = plt.subplots(figsize=(7, max(3, len(labels) * 0.4 + 1)),
                                facecolor=COLOR_BG)
         ax.set_facecolor(COLOR_BG)
         bars = ax.barh(labels, counts, color=colors, edgecolor="white")
@@ -228,7 +228,7 @@ class TrendExporter:
         x = np.arange(len(groups))
         w = 0.25
 
-        fig, ax = plt.subplots(figsize=(max(8, len(groups) * 1.2), 5),
+        fig, ax = plt.subplots(figsize=(max(6, len(groups) * 0.9), 4),
                                facecolor=COLOR_BG)
         ax.set_facecolor(COLOR_BG)
         ax.bar(x - w, pr1_n,  w, label="PR1",     color=COLOR_PR1, alpha=0.85)
@@ -294,7 +294,7 @@ class TrendExporter:
     def _make_mini_donut(self, title, count, total, color):
         pct = count / total * 100 if total else 0
         other = total - count
-        fig, ax = plt.subplots(figsize=(3.5, 3), facecolor=COLOR_BG)
+        fig, ax = plt.subplots(figsize=(3, 2.5), facecolor=COLOR_BG)
         ax.set_facecolor(COLOR_BG)
         sizes = [count, other] if other > 0 else [count, 0.001]
         ax.pie(sizes, colors=[color, "#E0E0E0"], startangle=90,
@@ -309,8 +309,11 @@ class TrendExporter:
 
     def _fig_to_image(self, fig) -> XLImage:
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=96, bbox_inches="tight",
                     facecolor=COLOR_BG)
         buf.seek(0)
         plt.close(fig)
-        return XLImage(buf)
+        img = XLImage(buf)
+        img.width  = 480
+        img.height = 300
+        return img
