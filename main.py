@@ -23,6 +23,7 @@ from gui_trend_tab import build_trend_tab
 from gui_campaign_tab import build_campaign_tab
 from gui_settings_tab import build_settings_tab
 from gui_help_tab import build_help_tab
+from gui_midterm_actions import run_midterm_sort, handle_midterm_complete, handle_midterm_error
 
 # Ensure the app root is on sys.path
 sys .path .insert (0 ,str (Path (__file__ ).parent ))
@@ -640,123 +641,19 @@ class InterventionSorterApp (tk .Tk ):
         """Build the Midterm Sorter tab UI."""
         build_midterm_tab(self)
 
-    def _on_run_midterm (self ):
-        if self ._midterm_processing :
-            return 
-        if not self ._ensure_season_set ():
-            return 
+    def _on_run_midterm(self):
+        run_midterm_sort(self)
 
-        semester_groups =SemesterManager ().get_groups ()
-        using_semester_groups =bool (semester_groups )
+    def _on_midterm_complete(self, result):
+        handle_midterm_complete(self, result)
 
-        errors =[]
-        always_required ={
-        "Midterm Grade File":self ._midterm_file_picker .path ,
-        "Contact Report":self ._midterm_contact_picker .path ,
-        "Output Folder":self ._midterm_output_picker .path ,
-        }
-        for label ,val in always_required .items ():
-            if not val :
-                errors .append (f"  {label } is required.")
-        if not using_semester_groups :
-            if not self ._midterm_control_picker .path :
-                errors .append ("  Group Control File is required (no semester groups configured).")
-            if not self ._midterm_group_dir_picker .path :
-                errors .append ("  Group Files Folder is required (no semester groups configured).")
-        if errors :
-            messagebox .showerror (
-            "Missing Inputs",
-            "Please provide all required files:\n\n"+"\n".join (errors )
-            )
-            return 
+    def _on_midterm_error(self, error_text: str):
+        handle_midterm_error(self, error_text)
 
-        season =self ._campaign_season_var .get ().strip ()if hasattr (self ,"_campaign_season_var")else ""
-        control_file =Path (self ._midterm_control_picker .path )if self ._midterm_control_picker .path else Path (".")
-        group_dir =Path (self ._midterm_group_dir_picker .path )if self ._midterm_group_dir_picker .path else Path (".")
-
-        inputs =MidtermPipelineInputs (
-        midterm_file =Path (always_required ["Midterm Grade File"]),
-        contact_report =Path (always_required ["Contact Report"]),
-        control_file =control_file ,
-        group_dir =group_dir ,
-        output_dir =Path (always_required ["Output Folder"]),
-        exclude_previous =self ._midterm_exclude_var .get (),
-        season =season ,
-        checkpoint_type ="Midterm",
-        semester_groups =semester_groups if using_semester_groups else None ,
-        )
-
-        # Group selection dialog — always show so user can pick which groups to produce
-        proceed ,skip_groups =self ._show_group_selection_dialog (
-        self ._midterm_control_picker .path ,
-        self ._midterm_group_dir_picker .path ,
-        "Midterm",
-        )
-        if not proceed :
-            return 
-        inputs .skip_groups =skip_groups 
-
-        self ._midterm_processing =True 
-        self ._midterm_run_btn .config (state ="disabled")
-        self ._midterm_progress_bar .start (12 )
-        self ._midterm_log_write ("="*55 ,"info")
-        self ._midterm_log_write ("STARTING MIDTERM SORT","step")
-        self ._midterm_log_write ("="*55 ,"info")
-
-        import threading 
-        def _worker ():
-            try :
-                controller =MidtermPipelineController (
-                progress_callback =lambda msg :self .after (
-                0 ,self ._midterm_log_write ,msg ,"step"
-                )
-                )
-                result =controller .run (inputs )
-                self .after (0 ,self ._on_midterm_complete ,result )
-            except Exception :
-                import traceback 
-                self .after (0 ,self ._on_midterm_error ,traceback .format_exc ())
-
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _on_midterm_complete (self ,result ):
-        self ._midterm_processing =False 
-        self ._trend_processing =False 
-        self ._semester_mgr =SemesterManager ()
-        self ._midterm_run_btn .config (state ="normal")
-        self ._midterm_progress_bar .stop ()
-        if result .success :
-            self ._midterm_log_write ("\n\u2705 "+result .message ,"success")
-            self ._midterm_log_write ("\U0001f4c1 Output: "+str (result .output_path ),"success")
-            if hasattr (self ,'_refresh_campaign_tab'):self ._refresh_campaign_tab ()
-            messagebox .showinfo (
-            "Midterm Sort Complete",
-            "\u2705 Midterm sort completed!\n\n"+result .message +
-            "\n\nOutput:\n"+str (result .output_path ),
-            )
-        else :
-            self ._midterm_log_write ("\n\u274c "+result .message ,"error")
-            for e in result .errors [:3 ]:
-                self ._midterm_log_write ("  "+e [:300 ],"error")
-            messagebox .showerror (
-            "Midterm Sort Failed",
-            "\u274c Processing failed:\n\n"+result .message +
-            ("\n\n"+result .errors [0 ][:400 ]if result .errors else ""),
-            )
-
-    def _on_midterm_error (self ,error_text :str ):
-        self ._midterm_processing =False 
-        self ._trend_processing =False 
-        self ._semester_mgr =SemesterManager ()
-        self ._midterm_run_btn .config (state ="normal")
-        self ._midterm_progress_bar .stop ()
-        self ._midterm_log_write ("\n\u274c Unexpected error:\n"+error_text [:400 ],"error")
-        messagebox .showerror ("Unexpected Error",error_text [:600 ])
-
-    def _midterm_clear_log (self ):
+    def _midterm_clear_log(self):
         clear_log(self._midterm_log_box)
 
-    def _midterm_log_write (self ,message :str ,tag :str ="info"):
+    def _midterm_log_write(self, message: str, tag: str = "info"):
         append_log(self._midterm_log_box, message, tag)
 
 
