@@ -21,6 +21,9 @@ from processors.pipeline_controller import PipelineController, PipelineInputs, P
 from processors.midterm_pipeline_controller import MidtermPipelineController, MidtermPipelineInputs
 from processors.trend_analyzer import TrendAnalyzer
 from processors.campaign_manager import CampaignManager
+from processors.season_report import SeasonReportGenerator
+from processors.prerun_checker import PreRunChecker
+from processors.summary_enhancer import SummaryEnhancer
 from processors.trend_exporter import TrendExporter
 from utils.settings_manager import get_settings, reload_settings, SETTINGS_PATH
 from processors.report_status_processor import ReportStatusProcessor
@@ -294,6 +297,17 @@ class InterventionSorterApp(tk.Tk):
         )
         self._validate_btn.pack(side="left", padx=(0, 10))
 
+        self._precheck_btn = tk.Button(
+            btn_frame,
+            text="🩺  Pre-Run Check",
+            font=FONT_MAIN,
+            bg="#00695C", fg="white",
+            relief="flat", padx=14, pady=10,
+            cursor="hand2",
+            command=self._on_prerun_check,
+        )
+        self._precheck_btn.pack(side="left", padx=(0, 10))
+
         self._clear_btn = tk.Button(
             btn_frame,
             text="⟳  Clear",
@@ -337,8 +351,104 @@ class InterventionSorterApp(tk.Tk):
     # Actions
     # ------------------------------------------------------------------
 
+    def _ensure_season_set(self) -> bool:
+        """
+        Check that a season name and checkpoint type are set.
+        If not, show a prompt dialog and let the user fill them in.
+        Returns True if ready to proceed, False if user cancelled.
+        """
+        if not hasattr(self, "_campaign_season_var"):
+            return True
+
+        season = self._campaign_season_var.get().strip()
+        checkpoint = self._checkpoint_type_var.get().strip() if hasattr(self, "_checkpoint_type_var") else ""
+
+        if season and checkpoint:
+            return True
+
+        # Show prompt dialog
+        dialog = tk.Toplevel(self)
+        dialog.title("Name This Campaign Run")
+        dialog.geometry("480x280")
+        dialog.configure(bg=PANEL_BG)
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        result = {"proceed": False}
+
+        # Header
+        tk.Label(
+            dialog,
+            text="Before running, please name this campaign.",
+            bg=PANEL_BG, fg=TEXT_FG, font=FONT_BOLD,
+            wraplength=440,
+        ).pack(pady=(20, 4), padx=24, anchor="w")
+        tk.Label(
+            dialog,
+            text="This keeps your run history organized by season.",
+            bg=PANEL_BG, fg="#546E7A", font=FONT_SUB,
+        ).pack(padx=24, anchor="w")
+
+        # Season name field
+        f1 = tk.Frame(dialog, bg=PANEL_BG)
+        f1.pack(fill="x", padx=24, pady=(16, 6))
+        tk.Label(f1, text="Season Name:", bg=PANEL_BG, fg=TEXT_FG,
+                 font=FONT_MAIN, width=16, anchor="w").pack(side="left")
+        season_var = tk.StringVar(value=season or "")
+        tk.Entry(f1, textvariable=season_var, font=FONT_MAIN, width=28,
+                 relief="flat", bg="white",
+                 highlightthickness=1, highlightbackground="#B0BEC5",
+                 insertbackground=TEXT_FG).pack(side="left", ipady=4)
+
+        # Checkpoint type
+        from utils.config import CHECKPOINT_TYPES
+        f2 = tk.Frame(dialog, bg=PANEL_BG)
+        f2.pack(fill="x", padx=24, pady=(0, 16))
+        tk.Label(f2, text="Checkpoint:", bg=PANEL_BG, fg=TEXT_FG,
+                 font=FONT_MAIN, width=16, anchor="w").pack(side="left")
+        cp_var = tk.StringVar(value=checkpoint or CHECKPOINT_TYPES[0])
+        for ct in CHECKPOINT_TYPES:
+            tk.Radiobutton(
+                f2, text=ct, variable=cp_var, value=ct,
+                bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
+                activebackground=PANEL_BG, selectcolor="white",
+            ).pack(side="left", padx=(0, 8))
+
+        # Buttons
+        bf = tk.Frame(dialog, bg=PANEL_BG)
+        bf.pack(fill="x", padx=24, pady=(0, 20))
+
+        def on_proceed():
+            s = season_var.get().strip()
+            if not s:
+                tk.Label(dialog, text="Please enter a season name.",
+                         bg=PANEL_BG, fg="#C62828", font=FONT_SUB).pack()
+                return
+            self._campaign_season_var.set(s)
+            self._checkpoint_type_var.set(cp_var.get())
+            result["proceed"] = True
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        tk.Button(bf, text="▶  Proceed", font=FONT_BOLD,
+                  bg=BTN_PRIMARY, fg="white", relief="flat",
+                  padx=16, pady=8, cursor="hand2",
+                  command=on_proceed).pack(side="left", padx=(0, 8))
+        tk.Button(bf, text="Cancel", font=FONT_MAIN,
+                  bg="#78909C", fg="white", relief="flat",
+                  padx=12, pady=8, cursor="hand2",
+                  command=on_cancel).pack(side="left")
+
+        dialog.wait_window()
+        return result["proceed"]
+
     def _on_run(self):
         if self._processing:
+            return
+        if not self._ensure_season_set():
             return
         inputs = self._collect_inputs()
         if inputs is None:
@@ -352,6 +462,106 @@ class InterventionSorterApp(tk.Tk):
         if inputs is None:
             return
         self._start_processing(inputs, validate_only=True)
+
+    def _on_prerun_check(self):
+        """Run pre-flight data quality checks without a full pipeline run."""
+        paths = {
+            "Progress Report":  self._progress_picker.path,
+            "Contact Report":   self._contact_picker.path,
+            "Group Control":    self._control_picker.path,
+            "Group Folder":     self._group_dir_picker.path,
+        }
+        missing = [k for k, v in paths.items() if not v]
+        if missing:
+            messagebox.showerror("Missing Files",
+                "Please select files first:\n" + "\n".join(f"  • {m}" for m in missing))
+            return
+
+        self._log("=" * 55, "info")
+        self._log("PRE-RUN DATA QUALITY CHECK", "step")
+        self._log("=" * 55, "info")
+
+        import threading
+        def _worker():
+            checker = PreRunChecker()
+            all_results = []
+            progress_ids = None
+
+            # Check progress report
+            self.after(0, self._log, "Checking progress report...", "step")
+            pr_results = checker.check_progress_report(
+                Path(paths["Progress Report"])
+            )
+            all_results.extend(pr_results)
+
+            # Extract at-risk IDs for cross-checks
+            try:
+                from utils.settings_manager import get_settings
+                from utils.normalization import normalize_student_id_series, normalize_at_risk_series
+                import pandas as pd
+                col = get_settings().progress_report_map
+                df = pd.read_csv(paths["Progress Report"], dtype=str, keep_default_na=False) \
+                    if paths["Progress Report"].endswith(".csv") \
+                    else pd.read_excel(paths["Progress Report"], dtype=str,
+                                       keep_default_na=False, engine="openpyxl")
+                df.columns = [str(c).strip() for c in df.columns]
+                if col["at_risk"] in df.columns and col["student_id"] in df.columns:
+                    at_risk_mask = normalize_at_risk_series(df[col["at_risk"]])
+                    progress_ids = set(
+                        normalize_student_id_series(df[at_risk_mask][col["student_id"]])
+                        .replace("", pd.NA).dropna()
+                    )
+            except Exception:
+                pass
+
+            # Check contact report
+            self.after(0, self._log, "Checking contact report...", "step")
+            cr_results = checker.check_contact_report(
+                Path(paths["Contact Report"]), progress_ids
+            )
+            all_results.extend(cr_results)
+
+            # Check group files
+            self.after(0, self._log, "Checking group files...", "step")
+            gf_results = checker.check_group_files(
+                Path(paths["Group Control"]),
+                Path(paths["Group Folder"]),
+                progress_ids,
+            )
+            all_results.extend(gf_results)
+
+            self.after(0, self._show_precheck_results, all_results)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _show_precheck_results(self, results):
+        """Display pre-run check results in the log and a summary popup."""
+        errors   = [r for r in results if r.level == "error"]
+        warnings = [r for r in results if r.level == "warning"]
+        infos    = [r for r in results if r.level == "info"]
+
+        for r in infos:
+            self._log(f"  ℹ️  {r.message}", "info")
+        for r in warnings:
+            self._log(f"  ⚠️  {r.message}", "warning")
+        for r in errors:
+            self._log(f"  ❌  {r.message}", "error")
+
+        if errors:
+            self._log("\n❌ Pre-run check found errors — fix before running.", "error")
+            messagebox.showerror("Pre-Run Check Failed",
+                f"Found {len(errors)} error(s) and {len(warnings)} warning(s).\n\n"
+                + "\n".join(f"❌ {r.message[:120]}" for r in errors[:5]))
+        elif warnings:
+            self._log(f"\n⚠️  Pre-run check passed with {len(warnings)} warning(s).", "warning")
+            messagebox.showwarning("Pre-Run Check — Warnings",
+                f"No errors found but {len(warnings)} warning(s):\n\n"
+                + "\n".join(f"⚠️ {r.message[:120]}" for r in warnings[:5])
+                + "\n\nYou can still run — check warnings in the log.")
+        else:
+            self._log("\n✅ Pre-run check passed — all files look good!", "success")
+            messagebox.showinfo("Pre-Run Check Passed",
+                "✅ All files validated successfully!\n\nReady to run.")
 
     def _on_clear(self):
         self._log_box.config(state="normal")
@@ -754,6 +964,8 @@ class InterventionSorterApp(tk.Tk):
     def _on_run_midterm(self):
         if self._midterm_processing:
             return
+        if not self._ensure_season_set():
+            return
         errors = []
         paths = {
             "Midterm Grade File": self._midterm_file_picker.path,
@@ -947,6 +1159,62 @@ class InterventionSorterApp(tk.Tk):
         )
         self._trend_progress_bar.pack(fill="x", pady=(0, 8))
 
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+
+        # Master Season Report section
+        section_label(outer, "End-of-Semester Master Report").pack(anchor="w", pady=(0, 6))
+        tk.Label(
+            outer,
+            text="Select the three output workbooks from this semester to generate "
+                 "a combined master report with student list and season summary.",
+            bg=PANEL_BG, fg="#546E7A", font=FONT_SUB, wraplength=700, justify="left",
+        ).pack(anchor="w", pady=(0, 8))
+
+        mf = tk.Frame(outer, bg=PANEL_BG)
+        mf.pack(fill="x")
+
+        self._master_pr1_picker = FilePickerRow(
+            mf, label="Progress Report 1:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="PR1 output workbook (ProgressReport_...xlsx)",
+        )
+        self._master_pr1_picker.pack(fill="x", pady=3)
+
+        self._master_mid_picker = FilePickerRow(
+            mf, label="Midterm:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="Midterm output workbook (MidtermSort_...xlsx)",
+        )
+        self._master_mid_picker.pack(fill="x", pady=3)
+
+        self._master_pr2_picker = FilePickerRow(
+            mf, label="Progress Report 2:",
+            filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")],
+            tooltip="PR2 output workbook (ProgressReport_...xlsx)",
+        )
+        self._master_pr2_picker.pack(fill="x", pady=3)
+
+        self._master_output_picker = FilePickerRow(
+            mf, label="Output Folder:",
+            filetypes=[], is_directory=True,
+            tooltip="Where the master report will be saved",
+        )
+        self._master_output_picker.pack(fill="x", pady=3)
+        self._master_output_picker.path = str(OUTPUT_DIR)
+
+        master_btn_frame = tk.Frame(outer, bg=PANEL_BG)
+        master_btn_frame.pack(fill="x", pady=(10, 0))
+
+        tk.Button(
+            master_btn_frame,
+            text="📘  Generate Master Season Report",
+            font=FONT_BOLD, bg="#375623", fg="white",
+            relief="flat", padx=20, pady=10, cursor="hand2",
+            command=self._on_generate_master_report,
+        ).pack(side="left")
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+
         section_label(outer, "Processing Log").pack(anchor="w", pady=(4, 4))
 
         self._trend_log_box = scrolledtext.ScrolledText(
@@ -1032,6 +1300,72 @@ class InterventionSorterApp(tk.Tk):
                 self.after(0, self._on_trend_complete, False, traceback.format_exc(), {})
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_generate_master_report(self):
+        """Generate the end-of-semester master season report."""
+        out_dir = self._master_output_picker.path
+        if not out_dir:
+            messagebox.showerror("Missing Input", "Please select an output folder.")
+            return
+
+        paths = {
+            "pr1": self._master_pr1_picker.path,
+            "mid": self._master_mid_picker.path,
+            "pr2": self._master_pr2_picker.path,
+        }
+        if not any(paths.values()):
+            messagebox.showerror("Missing Input",
+                "Please select at least one output workbook.")
+            return
+
+        season = self._campaign_season_var.get().strip() if hasattr(self, "_campaign_season_var") else ""
+        pr1_label = self._trend_pr1_label.get().strip() or "Progress Report 1"
+        mid_label = self._trend_mid_label.get().strip() or "Midterm"
+        pr2_label = self._trend_pr2_label.get().strip() or "Progress Report 2"
+
+        self._trend_log_write("=" * 55, "info")
+        self._trend_log_write("GENERATING MASTER SEASON REPORT", "step")
+        self._trend_log_write("=" * 55, "info")
+
+        import threading
+        def _worker():
+            try:
+                from datetime import datetime
+                from utils.config import LOG_DATE_FORMAT
+                timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
+                season_label = season.replace(" ", "_") if season else "Season"
+                out_path = Path(out_dir) / f"MasterReport_{season_label}_{timestamp}.xlsx"
+                Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+                self.after(0, self._trend_log_write, "Loading output workbooks...", "step")
+                gen = SeasonReportGenerator()
+                gen.generate(
+                    pr1_path=Path(paths["pr1"]) if paths["pr1"] else None,
+                    mid_path=Path(paths["mid"]) if paths["mid"] else None,
+                    pr2_path=Path(paths["pr2"]) if paths["pr2"] else None,
+                    output_path=out_path,
+                    season_name=season,
+                    pr1_label=pr1_label,
+                    mid_label=mid_label,
+                    pr2_label=pr2_label,
+                )
+                self.after(0, self._on_master_report_done, True, str(out_path))
+            except Exception:
+                import traceback
+                self.after(0, self._on_master_report_done, False, traceback.format_exc())
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_master_report_done(self, success, message):
+        if success:
+            self._trend_log_write("\n\u2705 Master report generated!", "success")
+            self._trend_log_write("\U0001f4c1 Output: " + message, "success")
+            messagebox.showinfo("Master Report Complete",
+                "\u2705 Master Season Report generated!\n\nOutput:\n" + message)
+        else:
+            self._trend_log_write("\n\u274c Failed:\n" + message[:400], "error")
+            messagebox.showerror("Master Report Failed",
+                "\u274c Failed to generate report:\n\n" + message[:400])
 
     def _on_trend_complete(self, success, message, overall):
         self._trend_processing = False

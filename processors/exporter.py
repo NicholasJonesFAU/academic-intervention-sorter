@@ -43,6 +43,7 @@ from utils.excel_utils import (
     make_wrap_alignment,
 )
 from utils.logging_utils import QALog
+from processors.summary_enhancer import SummaryEnhancer
 
 logger = logging.getLogger("intervention_sorter")
 
@@ -215,6 +216,14 @@ class Exporter:
             ws.cell(row=r_idx, column=2, value=value)
 
         apply_summary_formatting(ws)
+
+        # Add visual enhancements
+        try:
+            enhancer = SummaryEnhancer()
+            enhancer.enhance(ws, metrics, group_data, group_order)
+        except Exception as exc:
+            logger.warning("Exporter: Could not add summary charts: %s", exc)
+
         logger.info("Exporter: Summary tab written.")
 
     # ------------------------------------------------------------------
