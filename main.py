@@ -18,6 +18,7 @@ from gui_dialogs import show_group_selection_dialog, ensure_season_set, show_new
 from gui_logging import append_log, clear_log, configure_log_tags, PURPLE_LOG_TAGS
 from gui_progress_tab import build_progress_report_sorter_tab
 from gui_report_status_tab import build_report_status_tab
+from gui_midterm_tab import build_midterm_tab
 
 # Ensure the app root is on sys.path
 sys .path .insert (0 ,str (Path (__file__ ).parent ))
@@ -631,103 +632,9 @@ class InterventionSorterApp (tk .Tk ):
 
 
 
-    def _build_midterm_tab (self ):
+    def _build_midterm_tab(self):
         """Build the Midterm Sorter tab UI."""
-        tab =self ._midterm_tab 
-        outer ,_wheel_on3 ,_wheel_off3 =self ._make_scrollable_tab (tab )
-
-        section_label (outer ,"Input Files").pack (fill ="x",pady =(0 ,8 ))
-
-        pf =tk .Frame (outer ,bg =theme.PANEL_BG )
-        pf .pack (fill ="x")
-
-        self ._midterm_file_picker =FilePickerRow (
-        pf ,label ="Midterm Grade File:",
-        filetypes =[("Excel/CSV Files","*.xlsx *.xls *.csv"),("All Files","*.*")],
-        tooltip ="Canvas midterm export — xlsx or csv",
-        )
-        self ._midterm_file_picker .pack (fill ="x",pady =4 )
-
-        self ._midterm_contact_picker =FilePickerRow (
-        pf ,label ="Contact Report:",
-        filetypes =[("Excel Files","*.xlsx *.xls"),("All Files","*.*")],
-        tooltip ="Same contact report used in Progress Report Sorter",
-        )
-        self ._midterm_contact_picker .pack (fill ="x",pady =4 )
-
-        self ._midterm_control_picker =FilePickerRow (
-        pf ,label ="Group Control File:",
-        filetypes =[("Text Files","*.txt"),("All Files","*.*")],
-        tooltip ="TXT file: TabName|filename.xlsx  (one per line, ordered by priority)",
-        )
-        self ._midterm_control_picker .pack (fill ="x",pady =4 )
-
-        self ._midterm_group_dir_picker =FilePickerRow (
-        pf ,label ="Group Files Folder:",
-        filetypes =[],is_directory =True ,
-        tooltip ="Folder containing group Excel files listed in the control file",
-        )
-        self ._midterm_group_dir_picker .pack (fill ="x",pady =4 )
-
-        self ._midterm_output_picker =FilePickerRow (
-        pf ,label ="Output Folder:",
-        filetypes =[],is_directory =True ,
-        tooltip ="Where the output workbook will be saved",
-        )
-        self ._midterm_output_picker .pack (fill ="x",pady =4 )
-        self ._midterm_output_picker .path =str (OUTPUT_DIR )
-
-        # Exclude checkbox
-        chk_frame =tk .Frame (outer ,bg =theme.PANEL_BG )
-        chk_frame .pack (fill ="x",pady =(8 ,0 ))
-        tk .Checkbutton (
-        chk_frame ,
-        text ="Exclude students already assigned in a previous run this campaign",
-        variable =self ._midterm_exclude_var ,
-        bg =theme.PANEL_BG ,fg =theme.TEXT_FG ,font =theme.FONT_MAIN ,
-        activebackground =theme.PANEL_BG ,selectcolor ="#ffffff",cursor ="hand2",
-        ).pack (side ="left")
-        tk .Label (
-        chk_frame ,text ="(reads/writes assigned_students.txt in output folder)",
-        bg =theme.PANEL_BG ,fg =theme.TEXT_MUTED ,font =theme.FONT_SUB ,
-        ).pack (side ="left",padx =(8 ,0 ))
-
-        ttk .Separator (outer ,orient ="horizontal").pack (fill ="x",pady =14 )
-
-        # Buttons — pack BEFORE the log box so they're always visible
-        btn_frame =tk .Frame (outer ,bg =theme.PANEL_BG )
-        btn_frame .pack (fill ="x",pady =(0 ,8 ))
-
-        self ._midterm_run_btn =RoundedButton (
-        btn_frame ,text ='Run Midterm Sort',
-        command =self ._on_run_midterm ,
-        **theme.BTN_PRIMARY ,font =theme.FONT_BOLD ,padx =20 ,pady =9 ,
-        )
-        self ._midterm_run_btn .pack (side ="left",padx =(0 ,10 ))
-
-        RoundedButton (
-        btn_frame ,text ="Clear",
-        **theme.BTN_MUTED_STYLE ,font =theme.FONT_MAIN ,padx =14 ,pady =9 ,
-        command =self ._midterm_clear_log ,
-        ).pack (side ="left")
-
-        self ._midterm_progress_bar =ttk .Progressbar (
-        outer ,maximum =100 ,mode ="indeterminate"
-        )
-        self ._midterm_progress_bar .pack (fill ="x",pady =(0 ,8 ))
-
-        section_label (outer ,"Processing Log").pack (fill ="x",pady =(4 ,4 ))
-
-        self ._midterm_log_box =scrolledtext .ScrolledText (
-        outer ,height =10 ,font =theme.FONT_MONO ,
-        bg ="#0A1628",fg ="#C8D6E8",
-        relief ="flat",wrap ="word",
-        )
-        self ._midterm_log_box .pack (fill ="both",expand =True )
-        self ._midterm_log_box .config (state ="disabled")
-        self ._midterm_log_box .bind ("<Enter>",_wheel_off3 )
-        self ._midterm_log_box .bind ("<Leave>",_wheel_on3 )
-        configure_log_tags(self._midterm_log_box, PURPLE_LOG_TAGS)
+        build_midterm_tab(self)
 
     def _on_run_midterm (self ):
         if self ._midterm_processing :
