@@ -79,41 +79,41 @@ def _load_inter_fonts() -> str:
 _FONT_FAMILY = None  # Set after tk.Tk() is created
 
 # ---------------------------------------------------------------------------
-# FAU Brand Color Palette
-# Primary: Navy #003366  Gold: #CCA20F  Light: #E8EEF4  Dark text: #1A2332
+# Color system — dark navy + red accent, warm off-white panels
 # ---------------------------------------------------------------------------
-FAU_NAVY       = "#003366"   # FAU primary navy
-FAU_NAVY_LIGHT = "#004488"   # Slightly lighter navy for hover/accents
-FAU_GOLD       = "#CCA20F"   # FAU gold
-FAU_GOLD_LIGHT = "#E8C840"   # Lighter gold for highlights
-FAU_WHITE      = "#FFFFFF"
-FAU_PANEL      = "#F0F4F8"   # Cool light gray panel
-FAU_PANEL_DARK = "#E2E8F0"   # Slightly darker panel for contrast
-FAU_BORDER     = "#CBD5E0"   # Subtle border color
-
-# Semantic colors
-BG_COLOR      = FAU_NAVY
-PANEL_BG      = FAU_PANEL
-BTN_PRIMARY   = FAU_NAVY
-BTN_GOLD      = FAU_GOLD
-BTN_SECONDARY = FAU_NAVY_LIGHT
-BTN_DANGER    = "#C53030"
-BTN_SUCCESS   = "#276749"
-TEXT_FG       = "#1A2332"
-TEXT_MUTED    = "#4A5568"
-ACCENT_FG     = FAU_NAVY
+NAVY          = "#1a1f2e"   # Near-black navy — header, primary buttons
+NAVY_HOVER    = "#252c3d"   # Slightly lighter for hover
+RED_ACCENT    = "#c53030"   # Red — section accents, danger, pre-run check
+RED_HOVER     = "#a12424"   # Darker red for hover
+PANEL_BG      = "#f7f8fa"   # Warm off-white — tab body background
+PANEL_CARD    = "#ffffff"   # Pure white for cards / inputs
+BORDER        = "#e2e6ea"   # Subtle border
+BORDER_FOCUS  = "#6b7a94"   # Focused input border
+TEXT_PRIMARY  = "#1a1f2e"   # Main body text
+TEXT_MUTED    = "#6b7a94"   # Hints, tooltips, labels
+TEXT_LIGHT    = "#9aa3b0"   # Very muted — sub-hints
 SUCCESS_COLOR = "#276749"
-WARNING_COLOR = "#C05621"
+WARNING_COLOR = "#c05621"
+BTN_GHOST_BG  = "#ffffff"
 
-# Typography — Segoe UI is clean and Windows-native
-# Font tuples built after font loading — see InterventionSorterApp.__init__
-FONT_MAIN   = ("Segoe UI", 10)
-FONT_BOLD   = ("Segoe UI", 10, "bold")
-FONT_HEADER = ("Segoe UI", 15, "bold")
-FONT_TITLE  = ("Segoe UI", 11, "bold")
-FONT_SUB    = ("Segoe UI", 9)
-FONT_MONO   = ("Consolas", 9)
-FONT_SMALL  = ("Segoe UI", 8)
+# Aliases kept for backward compat with any stray references
+BG_COLOR      = NAVY
+PANEL_BG      = PANEL_BG
+BTN_PRIMARY   = NAVY
+BTN_SECONDARY = NAVY_HOVER
+BTN_DANGER    = RED_ACCENT
+RED_ACCENT      = RED_ACCENT   # was gold — now red
+FAU_NAVY      = NAVY
+FAU_NAVY_LIGHT= NAVY_HOVER
+RED_ACCENT      = RED_ACCENT
+RED_ACCENT_LIGHT= RED_HOVER
+FAU_WHITE     = "#ffffff"
+FAU_PANEL     = PANEL_BG
+FAU_PANEL_DARK= "#edf0f3"
+FAU_BORDER    = BORDER
+ACCENT_FG     = NAVY
+TEXT_FG       = TEXT_PRIMARY
+
 
 def _apply_font(family: str) -> None:
     """Update all FONT_* globals to use the loaded font family."""
@@ -126,13 +126,12 @@ def _apply_font(family: str) -> None:
     FONT_SMALL  = (family, 8)
 
 
-def section_label(parent, text: str) -> tk.Label:
-    """A gold-accented uppercase section header."""
+def section_label(parent, text: str) -> tk.Frame:
+    """Red accent bar + uppercase label — matches mockup style."""
     frame = tk.Frame(parent, bg=PANEL_BG)
-    # Gold accent bar on the left
-    tk.Frame(frame, bg=FAU_GOLD, width=3).pack(side="left", fill="y", padx=(0, 8))
+    tk.Frame(frame, bg=RED_ACCENT, width=3).pack(side="left", fill="y", padx=(0, 10))
     tk.Label(frame, text=text.upper(), bg=PANEL_BG,
-             fg=FAU_NAVY, font=FONT_TITLE).pack(side="left", anchor="w")
+             fg=TEXT_PRIMARY, font=FONT_TITLE).pack(side="left", anchor="w")
     return frame
 
 
@@ -160,18 +159,18 @@ class FilePickerRow(tk.Frame):
 
         entry = tk.Entry(
             self, textvariable=self._path, font=FONT_MAIN,
-            width=48, relief="flat", bg=FAU_WHITE,
-            fg=TEXT_FG, insertbackground=FAU_NAVY,
-            highlightthickness=1, highlightbackground=FAU_BORDER,
-            highlightcolor=FAU_NAVY,
+            width=48, relief="flat", bg=PANEL_CARD,
+            fg=TEXT_PRIMARY, insertbackground=NAVY,
+            highlightthickness=1, highlightbackground=BORDER,
+            highlightcolor=NAVY,
         )
-        entry.grid(row=0, column=1, padx=(0, 8), ipady=5)
+        entry.grid(row=0, column=1, padx=(0, 8), ipady=6)
 
         browse_btn = tk.Button(
             self, text="Browse", font=FONT_BOLD,
-            bg=FAU_NAVY, fg=FAU_WHITE, relief="flat",
-            padx=12, pady=5, cursor="hand2",
-            activebackground=FAU_NAVY_LIGHT, activeforeground=FAU_WHITE,
+            bg=NAVY, fg="#ffffff", relief="flat",
+            padx=14, pady=6, cursor="hand2",
+            activebackground=NAVY_HOVER, activeforeground="#ffffff",
             command=lambda: self._browse(filetypes),
         )
         browse_btn.grid(row=0, column=2)
@@ -238,40 +237,35 @@ class InterventionSorterApp(tk.Tk):
 
     def _build_ui(self):
         # ── Header banner ──────────────────────────────────────────
-        header = tk.Frame(self, bg=FAU_NAVY)
+        header = tk.Frame(self, bg=NAVY)
         header.pack(fill="x")
 
-        # Gold top stripe
-        tk.Frame(header, bg=FAU_GOLD, height=4).pack(fill="x")
-
-        # Content row
-        header_inner = tk.Frame(header, bg=FAU_NAVY, pady=14, padx=20)
+        header_inner = tk.Frame(header, bg=NAVY, pady=14, padx=24)
         header_inner.pack(fill="x")
 
-        # Left: App name
         tk.Label(
-            header_inner, text=APP_NAME.upper(),
-            bg=FAU_NAVY, fg=FAU_WHITE,
-            font=("Segoe UI", 14, "bold"),
+            header_inner, text=APP_NAME,
+            bg=NAVY, fg="#ffffff",
+            font=(FONT_HEADER[0], 14, "bold"),
         ).pack(side="left")
 
         tk.Label(
-            header_inner, text="  |  Academic Advising Intervention Workflow",
-            bg=FAU_NAVY, fg="#A0B4CC",
-            font=("Segoe UI", 10),
+            header_inner, text="  —  Academic Advising Workflow",
+            bg=NAVY, fg="#8892a4",
+            font=FONT_MAIN,
         ).pack(side="left")
 
-        # Right: Version badge
-        ver_frame = tk.Frame(header_inner, bg=FAU_GOLD, padx=8, pady=2)
+        # Red version badge on the right
+        ver_frame = tk.Frame(header_inner, bg=RED_ACCENT, padx=8, pady=3)
         ver_frame.pack(side="right")
         tk.Label(
             ver_frame, text=f"v{APP_VERSION}",
-            bg=FAU_GOLD, fg=FAU_NAVY,
-            font=("Segoe UI", 9, "bold"),
+            bg=RED_ACCENT, fg="#ffffff",
+            font=FONT_SMALL,
         ).pack()
 
-        # Gold bottom stripe
-        tk.Frame(header, bg=FAU_GOLD, height=2).pack(fill="x")
+        # Thin red bottom line
+        tk.Frame(header, bg=RED_ACCENT, height=2).pack(fill="x")
 
         # ── Notebook tabs ──────────────────────────────────────────
         style = ttk.Style()
@@ -279,22 +273,20 @@ class InterventionSorterApp(tk.Tk):
 
         # Notebook container
         style.configure("TNotebook",
-            background=FAU_NAVY,
+            background=NAVY,
             borderwidth=0,
             tabmargins=[2, 4, 0, 0],
         )
-        # Inactive tabs
         style.configure("TNotebook.Tab",
-            font=("Segoe UI", 10, "bold"),
+            font=FONT_BOLD,
             padding=[18, 8],
-            background=FAU_NAVY_LIGHT,
-            foreground="#A0B4CC",
+            background=NAVY_HOVER,
+            foreground="#6b7a94",
             borderwidth=0,
         )
-        # Active tab
         style.map("TNotebook.Tab",
-            background=[("selected", FAU_PANEL), ("active", FAU_NAVY)],
-            foreground=[("selected", FAU_NAVY), ("active", FAU_WHITE)],
+            background=[("selected", PANEL_BG), ("active", NAVY)],
+            foreground=[("selected", NAVY), ("active", "#ffffff")],
             expand=[("selected", [1, 1, 1, 0])],
         )
         # Separator styling
@@ -310,7 +302,7 @@ class InterventionSorterApp(tk.Tk):
 
         # Progressbar
         style.configure("TProgressbar",
-            background=FAU_GOLD,
+            background=RED_ACCENT,
             troughcolor=FAU_PANEL_DARK,
             borderwidth=0,
         )
@@ -351,7 +343,7 @@ class InterventionSorterApp(tk.Tk):
         notebook.add(tab7, text="  Help  ")
         self._help_tab = tab7
 
-        content = tk.Frame(tab1, bg=PANEL_BG, padx=28, pady=18)
+        content = tk.Frame(tab1, bg=PANEL_BG, padx=24, pady=20)
         content.pack(fill="both", expand=True)
 
         # ── File pickers ───────────────────────────────────────────
@@ -412,7 +404,7 @@ class InterventionSorterApp(tk.Tk):
             bg=PANEL_BG, fg=TEXT_FG,
             font=FONT_MAIN,
             activebackground=PANEL_BG,
-            selectcolor="white",
+            selectcolor="#ffffff",
             cursor="hand2",
         ).pack(side="left")
         tk.Label(
@@ -443,7 +435,7 @@ class InterventionSorterApp(tk.Tk):
             btn_frame,
             text="Validate Only",
             font=FONT_MAIN,
-            bg=FAU_NAVY_LIGHT, fg=FAU_WHITE,
+            bg=NAVY_HOVER, fg="#ffffff",
             relief="flat", padx=14, pady=10,
             cursor="hand2",
             command=self._on_validate,
@@ -454,9 +446,9 @@ class InterventionSorterApp(tk.Tk):
             btn_frame,
             text="Pre-Run Check",
             font=FONT_MAIN,
-            bg=FAU_GOLD, fg=FAU_NAVY,
+            bg=RED_ACCENT, fg=FAU_NAVY,
             relief="flat", padx=14, pady=10,
-            activebackground=FAU_GOLD_LIGHT, activeforeground=FAU_NAVY,
+            activebackground=RED_ACCENT_LIGHT, activeforeground=FAU_NAVY,
             cursor="hand2",
             command=self._on_prerun_check,
         )
@@ -466,7 +458,7 @@ class InterventionSorterApp(tk.Tk):
             btn_frame,
             text="Clear",
             font=FONT_MAIN,
-            bg="#4A5568", fg=FAU_WHITE,
+            bg="#f0f2f5", fg=TEXT_PRIMARY,
             relief="flat", padx=14, pady=10,
             cursor="hand2",
             command=self._on_clear,
@@ -486,7 +478,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._log_box = scrolledtext.ScrolledText(
             content, height=10, font=FONT_MONO,
-            bg="#0A1628", fg="#C8D6E8",
+            bg="#0f1520", fg="#c8d6e8",
             insertbackground="white",
             relief="flat",
             wrap="word",
@@ -499,7 +491,7 @@ class InterventionSorterApp(tk.Tk):
         self._log_box.tag_config("error", foreground="#FC8181")
         self._log_box.tag_config("warning", foreground="#F6AD55")
         self._log_box.tag_config("info", foreground="#90CDF4")
-        self._log_box.tag_config("step", foreground=FAU_GOLD)
+        self._log_box.tag_config("step", foreground=RED_ACCENT)
 
     # ------------------------------------------------------------------
     # Actions
@@ -575,7 +567,7 @@ class InterventionSorterApp(tk.Tk):
                 row, text=f"  {tab_name}",
                 variable=var,
                 bg=PANEL_BG, fg=TEXT_FG, font=FONT_BOLD,
-                activebackground=PANEL_BG, selectcolor="white",
+                activebackground=PANEL_BG, selectcolor="#ffffff",
                 cursor="hand2",
             ).pack(side="left")
             tk.Label(row, text=f"({filename})",
@@ -594,12 +586,12 @@ class InterventionSorterApp(tk.Tk):
         shortcut_frame = tk.Frame(dialog, bg=PANEL_BG)
         shortcut_frame.pack(fill="x", padx=20, pady=(0, 8))
         tk.Button(shortcut_frame, text="Select All",
-                  font=FONT_SUB, bg="#4A5568", fg=FAU_WHITE,
+                  font=FONT_SUB, bg="#f0f2f5", fg=TEXT_PRIMARY,
                   relief="flat", padx=8, pady=4, cursor="hand2",
                   command=lambda: [v.set(True) for v in check_vars.values()]
                   ).pack(side="left", padx=(0, 6))
         tk.Button(shortcut_frame, text="Select None",
-                  font=FONT_SUB, bg="#4A5568", fg=FAU_WHITE,
+                  font=FONT_SUB, bg="#f0f2f5", fg=TEXT_PRIMARY,
                   relief="flat", padx=8, pady=4, cursor="hand2",
                   command=lambda: [v.set(False) for v in check_vars.values()]
                   ).pack(side="left")
@@ -632,7 +624,7 @@ class InterventionSorterApp(tk.Tk):
                   relief="flat", padx=16, pady=8, cursor="hand2",
                   command=on_run).pack(side="left", padx=(0, 8))
         tk.Button(bf, text="Cancel",
-                  font=FONT_MAIN, bg="#4A5568", fg=FAU_WHITE,
+                  font=FONT_MAIN, bg="#f0f2f5", fg=TEXT_PRIMARY,
                   relief="flat", padx=12, pady=8, cursor="hand2",
                   command=on_cancel).pack(side="left")
 
@@ -686,7 +678,7 @@ class InterventionSorterApp(tk.Tk):
         season_var = tk.StringVar(value=season or "")
         tk.Entry(f1, textvariable=season_var, font=FONT_MAIN, width=28,
                  relief="flat", bg="white",
-                 highlightthickness=1, highlightbackground="#B0BEC5",
+                 highlightthickness=1, highlightbackground=BORDER,
                  insertbackground=TEXT_FG).pack(side="left", ipady=4)
 
         # Checkpoint type
@@ -700,7 +692,7 @@ class InterventionSorterApp(tk.Tk):
             tk.Radiobutton(
                 f2, text=ct, variable=cp_var, value=ct,
                 bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
-                activebackground=PANEL_BG, selectcolor="white",
+                activebackground=PANEL_BG, selectcolor="#ffffff",
             ).pack(side="left", padx=(0, 8))
 
         # Buttons
@@ -711,7 +703,7 @@ class InterventionSorterApp(tk.Tk):
             s = season_var.get().strip()
             if not s:
                 tk.Label(dialog, text="Please enter a season name.",
-                         bg=PANEL_BG, fg="#C62828", font=FONT_SUB).pack()
+                         bg=PANEL_BG, fg=RED_ACCENT, font=FONT_SUB).pack()
                 return
             self._campaign_season_var.set(s)
             self._checkpoint_type_var.set(cp_var.get())
@@ -726,7 +718,7 @@ class InterventionSorterApp(tk.Tk):
                   padx=16, pady=8, cursor="hand2",
                   command=on_proceed).pack(side="left", padx=(0, 8))
         tk.Button(bf, text="Cancel", font=FONT_MAIN,
-                  bg="#4A5568", fg=FAU_WHITE, relief="flat",
+                  bg="#f0f2f5", fg=TEXT_PRIMARY, relief="flat",
                   padx=12, pady=8, cursor="hand2",
                   command=on_cancel).pack(side="left")
 
@@ -1078,7 +1070,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._report_log_box = scrolledtext.ScrolledText(
             content2, height=14, font=FONT_MONO,
-            bg="#0A1628", fg="#C8D6E8",
+            bg="#0f1520", fg="#c8d6e8",
             relief="flat", wrap="word",
         )
         self._report_log_box.pack(fill="both", expand=True)
@@ -1225,7 +1217,7 @@ class InterventionSorterApp(tk.Tk):
             text="Exclude students already assigned in a previous run this campaign",
             variable=self._midterm_exclude_var,
             bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
-            activebackground=PANEL_BG, selectcolor=FAU_WHITE, cursor="hand2",
+            activebackground=PANEL_BG, selectcolor="#ffffff", cursor="hand2",
         ).pack(side="left")
         tk.Label(
             chk_frame, text="(reads/writes assigned_students.txt in output folder)",
@@ -1251,7 +1243,7 @@ class InterventionSorterApp(tk.Tk):
         tk.Button(
             btn_frame,
             text="Clear",
-            font=FONT_MAIN, bg="#4A5568", fg=FAU_WHITE,
+            font=FONT_MAIN, bg="#f0f2f5", fg=TEXT_PRIMARY,
             relief="flat", padx=14, pady=10, cursor="hand2",
             command=lambda: self._midterm_clear_log(),
         ).pack(side="left")
@@ -1265,7 +1257,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._midterm_log_box = scrolledtext.ScrolledText(
             outer, height=10, font=FONT_MONO,
-            bg="#0A1628", fg="#C8D6E8",
+            bg="#0f1520", fg="#c8d6e8",
             relief="flat", wrap="word",
         )
         self._midterm_log_box.pack(fill="both", expand=True)
@@ -1458,7 +1450,7 @@ class InterventionSorterApp(tk.Tk):
             setattr(self, attr, var)
             tk.Entry(name_row, textvariable=var, font=FONT_MAIN, width=22,
                      relief="flat", bg="white",
-                     highlightthickness=1, highlightbackground="#B0BEC5",
+                     highlightthickness=1, highlightbackground=BORDER,
                      insertbackground=TEXT_FG).grid(row=0, column=i*2+1, padx=(0,16), ipady=3)
 
         ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=14)
@@ -1478,7 +1470,7 @@ class InterventionSorterApp(tk.Tk):
 
         tk.Button(
             btn_frame, text="Clear",
-            font=FONT_MAIN, bg="#4A5568", fg=FAU_WHITE,
+            font=FONT_MAIN, bg="#f0f2f5", fg=TEXT_PRIMARY,
             relief="flat", padx=14, pady=10, cursor="hand2",
             command=lambda: self._trend_clear_log(),
         ).pack(side="left")
@@ -1548,7 +1540,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._trend_log_box = scrolledtext.ScrolledText(
             outer, height=8, font=FONT_MONO,
-            bg="#0A1628", fg="#C8D6E8",
+            bg="#0f1520", fg="#c8d6e8",
             relief="flat", wrap="word",
         )
         self._trend_log_box.pack(fill="both", expand=True)
@@ -1759,7 +1751,7 @@ class InterventionSorterApp(tk.Tk):
         cards_frame.pack(fill="x", pady=(0, 12))
 
         from utils.config import SEMESTER_CHECKPOINTS
-        colors = [FAU_NAVY, "#1A6B3C", "#9B2226"]
+        colors = [NAVY, "#276749", RED_ACCENT]
         for i, cp_name in enumerate(SEMESTER_CHECKPOINTS):
             card = tk.Frame(cards_frame, bg=FAU_WHITE, bd=1, relief="solid",
                             padx=16, pady=12)
@@ -1788,7 +1780,7 @@ class InterventionSorterApp(tk.Tk):
 
             complete_btn = tk.Button(
                 btn_frame, text="Mark Complete",
-                font=FONT_SUB, bg=colors[i], fg="white",
+                font=FONT_SUB, bg=colors[i], fg="#ffffff",
                 relief="flat", padx=8, pady=4, cursor="hand2",
                 command=lambda n=cp_name: self._on_mark_checkpoint_complete(n),
             )
@@ -1796,7 +1788,7 @@ class InterventionSorterApp(tk.Tk):
 
             reset_btn = tk.Button(
                 btn_frame, text="Reset",
-                font=FONT_SUB, bg="#4A5568", fg=FAU_WHITE,
+                font=FONT_SUB, bg="#f0f2f5", fg=TEXT_PRIMARY,
                 relief="flat", padx=8, pady=4, cursor="hand2",
                 command=lambda n=cp_name: self._on_reset_checkpoint(n),
             )
@@ -1830,7 +1822,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._complete_sem_btn = tk.Button(
             action_frame, text="Complete Semester",
-            font=FONT_BOLD, bg=FAU_GOLD, fg=FAU_NAVY,
+            font=FONT_BOLD, bg=RED_ACCENT, fg=FAU_NAVY,
             relief="flat", padx=14, pady=10, cursor="hand2",
             command=self._on_complete_semester,
         )
@@ -1838,7 +1830,7 @@ class InterventionSorterApp(tk.Tk):
 
         self._reset_sem_btn = tk.Button(
             action_frame, text="Reset Semester",
-            font=FONT_MAIN, bg=BTN_DANGER, fg=FAU_WHITE,
+            font=FONT_MAIN, bg=RED_ACCENT, fg="#ffffff",
             relief="flat", padx=14, pady=10, cursor="hand2",
             command=self._on_reset_semester,
         )
@@ -1846,7 +1838,7 @@ class InterventionSorterApp(tk.Tk):
 
         tk.Button(
             action_frame, text="Refresh",
-            font=FONT_MAIN, bg="#4A5568", fg=FAU_WHITE,
+            font=FONT_MAIN, bg="#f0f2f5", fg=TEXT_PRIMARY,
             relief="flat", padx=14, pady=10, cursor="hand2",
             command=self._refresh_semester_tab,
         ).pack(side="left")
@@ -1915,12 +1907,12 @@ class InterventionSorterApp(tk.Tk):
         name_var = tk.StringVar(value="")
         entry = tk.Entry(f, textvariable=name_var, font=FONT_BOLD, width=26,
                          relief="flat", bg="white",
-                         highlightthickness=1, highlightbackground="#B0BEC5",
+                         highlightthickness=1, highlightbackground=BORDER,
                          insertbackground=TEXT_FG)
         entry.pack(side="left", ipady=5)
         entry.focus()
 
-        err_lbl = tk.Label(dialog, text="", bg=PANEL_BG, fg="#C62828", font=FONT_SUB)
+        err_lbl = tk.Label(dialog, text="", bg=PANEL_BG, fg=RED_ACCENT, font=FONT_SUB)
         err_lbl.pack(padx=24, anchor="w")
 
         bf = tk.Frame(dialog, bg=PANEL_BG)
@@ -1953,7 +1945,7 @@ class InterventionSorterApp(tk.Tk):
 
         if on_startup:
             tk.Button(bf, text="Skip for now", font=FONT_MAIN,
-                      bg="#4A5568", fg=FAU_WHITE, relief="flat",
+                      bg="#f0f2f5", fg=TEXT_PRIMARY, relief="flat",
                       padx=12, pady=8, cursor="hand2",
                       command=on_skip).pack(side="left")
 
@@ -1966,10 +1958,10 @@ class InterventionSorterApp(tk.Tk):
 
         # Update header
         if sem:
-            self._sem_name_label.config(text=sem.name, fg=BTN_PRIMARY)
+            self._sem_name_label.config(text=sem.name, fg=NAVY)
             self._sem_status_label.config(
                 text=f"● Active",
-                fg="#2E7D32"
+                fg=SUCCESS_COLOR
             )
             if hasattr(self, "_campaign_season_var"):
                 self._campaign_season_var.set(sem.name)
@@ -2087,8 +2079,8 @@ class InterventionSorterApp(tk.Tk):
     def _update_semester_header(self, sem):
         """Quick update of just the header label."""
         if sem and hasattr(self, "_sem_name_label"):
-            self._sem_name_label.config(text=sem.name, fg=BTN_PRIMARY)
-            self._sem_status_label.config(text="Active", fg="#2E7D32")
+            self._sem_name_label.config(text=sem.name, fg=NAVY)
+            self._sem_status_label.config(text="Active", fg=SUCCESS_COLOR)
 
     def _on_new_semester(self):
         sm = SemesterManager()
@@ -2244,7 +2236,7 @@ class InterventionSorterApp(tk.Tk):
             self._setting_vars[key] = var
             entry = tk.Entry(row, textvariable=var, font=FONT_MAIN,
                              width=36, relief="flat", bg="white",
-                             highlightthickness=1, highlightbackground="#B0BEC5",
+                             highlightthickness=1, highlightbackground=BORDER,
                              insertbackground=TEXT_FG)
             entry.pack(side="left", ipady=3)
             if tooltip:
@@ -2326,7 +2318,7 @@ class InterventionSorterApp(tk.Tk):
                   command=self._on_save_settings).pack(side="left", padx=(0, 10))
 
         tk.Button(btn_row, text="Reset to Defaults",
-                  font=FONT_MAIN, bg="#4A5568", fg=FAU_WHITE,
+                  font=FONT_MAIN, bg="#f0f2f5", fg=TEXT_PRIMARY,
                   relief="flat", padx=14, pady=10, cursor="hand2",
                   command=self._on_reset_settings).pack(side="left")
 
@@ -2477,7 +2469,7 @@ class InterventionSorterApp(tk.Tk):
             )
         except Exception as exc:
             self._settings_status.config(
-                text=f"❌ Save failed: {exc}", fg="#C62828"
+                text=f"❌ Save failed: {exc}", fg=RED_ACCENT
             )
 
     def _on_reset_settings(self):
