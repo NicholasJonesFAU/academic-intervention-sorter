@@ -100,3 +100,10 @@ __pycache__/
 *.xls
 *.csvrelease/ 
 *.exe 
+
+# --------------------------------------------------
+# Runtime data files — FERPA sensitive, never commit
+# --------------------------------------------------
+semesters.json
+campaigns.json
+assigned_students.txt

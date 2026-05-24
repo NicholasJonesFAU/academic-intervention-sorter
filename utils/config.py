@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple
 from pathlib import Path
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "2.0.0"
 APP_NAME = "Academic Intervention Sorter"
 
 # ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ MIDTERM_OUTPUT_COLUMNS = [
 ]
 
 # Output filename pattern for midterm
-MIDTERM_OUTPUT_FILENAME_PATTERN = "MidtermSort_{timestamp}.xlsx"
+MIDTERM_OUTPUT_FILENAME_PATTERN = "ProgressReport_Midterm_{timestamp}.xlsx"
 
 # ---------------------------------------------------------------------------
 # Trend / Campaign Cycle Report
@@ -359,3 +359,10 @@ CHECKPOINT_STATUS_COMPLETE    = "Complete"
 
 SEMESTER_STATUS_ACTIVE   = "Active"
 SEMESTER_STATUS_COMPLETE = "Complete"
+
+def get_semester_output_dir(season_name: str = "") -> "Path":
+    """Return output/Season_Name/ if season set, else output/."""
+    if season_name:
+        safe = season_name.strip().replace(" ", "_").replace("/", "-")
+        return OUTPUT_DIR / safe
+    return OUTPUT_DIR

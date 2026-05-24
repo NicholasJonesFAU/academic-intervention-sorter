@@ -263,10 +263,13 @@ class MidtermPipelineController:
         return result
 
     def _resolve_output_path(self, output_dir: Path) -> Path:
+        from utils.config import get_semester_output_dir
+        season = getattr(self, '_current_season', '')
+        semester_dir = get_semester_output_dir(season)
         timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
         filename = MIDTERM_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        return output_dir / filename
+        semester_dir.mkdir(parents=True, exist_ok=True)
+        return semester_dir / filename
 
     def _exclude_previous(self, students_df: pd.DataFrame):
         if not ASSIGNED_STUDENTS_PATH.exists():

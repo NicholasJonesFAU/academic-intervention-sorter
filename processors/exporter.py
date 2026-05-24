@@ -94,7 +94,10 @@ class Exporter:
             used_tab_names.append(safe)
             self._write_data_tab(wb, safe, df, [])  # already registered
 
-        # 4. QA_Log
+        # 4. Missing Contacts
+        self._write_missing_contacts(wb, group_data, group_order, used_tab_names)
+
+        # 5. QA_Log
         self._write_qa_log(wb, qa_log, used_tab_names)
 
         # 5. Processing_Manifest
@@ -225,6 +228,74 @@ class Exporter:
             logger.warning("Exporter: Could not add summary charts: %s", exc)
 
         logger.info("Exporter: Summary tab written.")
+
+    # ------------------------------------------------------------------
+    # Missing Contacts tab
+    # ------------------------------------------------------------------
+
+    def _write_missing_contacts(
+        self,
+        wb: Workbook,
+        group_data: Dict[str, pd.DataFrame],
+        group_order: List[str],
+        used_tab_names: List[str],
+    ) -> None:
+        """Write a tab listing students with no phone or email found."""
+        from utils.config import UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB
+        from utils.excel_utils import make_header_fill, make_header_font, make_body_font
+
+        all_tabs = list(group_order) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
+        frames = []
+        for tab in all_tabs:
+            df = group_data.get(tab, pd.DataFrame())
+            if df.empty:
+                continue
+            phone_col = "Phone Number" if "Phone Number" in df.columns else None
+            email_col = "Email" if "Email" in df.columns else None
+            if phone_col and email_col:
+                mask = (df[phone_col].fillna("") == "") & (df[email_col].fillna("") == "")
+                missing = df[mask][["Student Name", "Student ID", "Matched Group"]].copy()
+                if not missing.empty:
+                    frames.append(missing)
+
+        if not frames:
+            return  # No missing contacts — skip tab entirely
+
+        missing_df = pd.concat(frames, ignore_index=True).drop_duplicates("Student ID")
+
+        safe = safe_excel_tab_name("Missing_Contacts", used_tab_names)
+        used_tab_names.append(safe)
+        ws = wb.create_sheet(title=safe)
+
+        header_fill = make_header_fill("843C0C")
+        header_font = make_header_font()
+        body_font   = make_body_font()
+
+        cols = ["Student Name", "Student ID", "Matched Group"]
+        for c_idx, col in enumerate(cols, 1):
+            cell = ws.cell(1, c_idx, col)
+            cell.fill = header_fill
+            cell.font = header_font
+
+        from openpyxl.styles import Alignment, PatternFill
+        from utils.excel_utils import _argb
+        alt = PatternFill("solid", fgColor=_argb("DCE6F1"))
+        for r_idx, row in enumerate(missing_df.itertuples(index=False), start=2):
+            fill = alt if r_idx % 2 == 0 else PatternFill("solid", fgColor=_argb("FFFFFF"))
+            for c_idx, val in enumerate([row.Student_Name if hasattr(row,'Student_Name') else "",
+                                          row.Student_ID if hasattr(row,'Student_ID') else "",
+                                          row.Matched_Group if hasattr(row,'Matched_Group') else ""], start=1):
+                cell = ws.cell(r_idx, c_idx, str(val) if val else "")
+                cell.fill = fill
+                cell.font = body_font
+
+        ws.freeze_panes = ws.cell(2, 1)
+        ws.auto_filter.ref = f"A1:C1"
+        ws.column_dimensions["A"].width = 28
+        ws.column_dimensions["B"].width = 14
+        ws.column_dimensions["C"].width = 20
+
+        logger.info("Exporter: Missing_Contacts tab — %d students.", len(missing_df))
 
     # ------------------------------------------------------------------
     # QA Log tab
