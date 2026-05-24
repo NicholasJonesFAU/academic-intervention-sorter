@@ -130,9 +130,9 @@ def section_label(parent, text: str) -> tk.Label:
     """Red accent bar + uppercase label."""
     frame = tk.Frame(parent, bg=PANEL_BG)
     # Red accent bar on the left
-    tk.Frame(frame, bg=RED_ACCENT, width=3).pack(side="left", fill="y", padx=(0, 8))
+    tk.Frame(frame, bg="#c53030", width=3).pack(side="left", fill="y", padx=(0, 8))
     tk.Label(frame, text=text.upper(), bg=PANEL_BG,
-             fg=NAVY, font=FONT_TITLE).pack(side="left", anchor="w")
+             fg="#1a1f2e", font=FONT_TITLE).pack(side="left", anchor="w")
     return frame
 
 
@@ -249,7 +249,7 @@ class FilePickerRow(tk.Frame):
 
         browse_btn = tk.Button(
             self, text="Browse", font=FONT_BOLD,
-            bg=NAVY, fg="#ffffff", relief="flat",
+            bg="#1a1f2e", fg="#ffffff", relief="flat",
             padx=12, pady=5, cursor="hand2",
             activebackground=NAVY_LIGHT, activeforeground="#ffffff",
             command=lambda: self._browse(filetypes),
@@ -322,36 +322,36 @@ class InterventionSorterApp(tk.Tk):
         header.pack(fill="x")
 
         # Red accent top stripe
-        tk.Frame(header, bg=RED_ACCENT, height=4).pack(fill="x")
+        tk.Frame(header, bg="#c53030", height=4).pack(fill="x")
 
         # Content row
-        header_inner = tk.Frame(header, bg=NAVY, pady=14, padx=20)
+        header_inner = tk.Frame(header, bg="#1a1f2e", pady=14, padx=20)
         header_inner.pack(fill="x")
 
         # Left: App name
         tk.Label(
             header_inner, text=APP_NAME.upper(),
-            bg=NAVY, fg="#ffffff",
+            bg="#1a1f2e", fg="#ffffff",
             font=("Segoe UI", 14, "bold"),
         ).pack(side="left")
 
         tk.Label(
             header_inner, text="  |  Academic Advising Intervention Workflow",
-            bg=NAVY, fg="#A0B4CC",
+            bg="#1a1f2e", fg="#A0B4CC",
             font=("Segoe UI", 10),
         ).pack(side="left")
 
         # Right: Version badge
-        ver_frame = tk.Frame(header_inner, bg=RED_ACCENT, padx=8, pady=2)
+        ver_frame = tk.Frame(header_inner, bg="#c53030", padx=8, pady=2)
         ver_frame.pack(side="right")
         tk.Label(
             ver_frame, text=f"v{APP_VERSION}",
-            bg=RED_ACCENT, fg=NAVY,
+            bg="#c53030", fg="#1a1f2e",
             font=("Segoe UI", 9, "bold"),
         ).pack()
 
         # Red accent bottom stripe
-        tk.Frame(header, bg=RED_ACCENT, height=2).pack(fill="x")
+        tk.Frame(header, bg="#c53030", height=2).pack(fill="x")
 
         # ── Notebook tabs ──────────────────────────────────────────
         style = ttk.Style()
@@ -510,7 +510,7 @@ class InterventionSorterApp(tk.Tk):
         self._run_btn = RoundedButton(
             btn_frame, text='Run Full Processing',
             command=self._on_run,
-            bg=NAVY, fg="#ffffff", hover_bg=NAVY_HOVER,
+            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
             font=FONT_BOLD, padx=20, pady=9, radius=6,
         )
         self._run_btn.pack(side="left", padx=(0, 10))
@@ -518,7 +518,7 @@ class InterventionSorterApp(tk.Tk):
         self._validate_btn = RoundedButton(
             btn_frame, text='Validate Only',
             command=self._on_validate,
-            bg="#f0f2f5", fg="TEXT_PRIMARY", hover_bg="#e2e6ea",
+            bg="#f0f2f5", fg="#1a1f2e", hover_bg="#e2e6ea",
             font=FONT_MAIN, padx=14, pady=8, radius=6,
         )
         self._validate_btn.pack(side="left", padx=(0, 10))
@@ -526,7 +526,7 @@ class InterventionSorterApp(tk.Tk):
         self._precheck_btn = RoundedButton(
             btn_frame, text='Pre-Run Check',
             command=self._on_prerun_check,
-            bg=RED_ACCENT, fg="#ffffff", hover_bg=RED_HOVER,
+            bg="#c53030", fg="#ffffff", hover_bg="#a12424",
             font=FONT_MAIN, padx=14, pady=8, radius=6,
         )
         self._precheck_btn.pack(side="left", padx=(0, 10))
@@ -534,7 +534,7 @@ class InterventionSorterApp(tk.Tk):
         self._clear_btn = RoundedButton(
             btn_frame, text='Clear',
             command=self._on_clear,
-            bg="#f0f2f5", fg="TEXT_PRIMARY", hover_bg="#e2e6ea",
+            bg="#f0f2f5", fg="#1a1f2e", hover_bg="#e2e6ea",
             font=FONT_MAIN, padx=14, pady=8, radius=6,
         )
         self._clear_btn.pack(side="left")
@@ -694,7 +694,7 @@ class InterventionSorterApp(tk.Tk):
             dialog.destroy()
 
         tk.Button(bf, text="Run with Selected Groups",
-                  font=FONT_BOLD, bg=NAVY, fg="white",
+                  font=FONT_BOLD, bg="#1a1f2e", fg="white",
                   relief="flat", padx=16, pady=8, cursor="hand2",
                   command=on_run).pack(side="left", padx=(0, 8))
         tk.Button(bf, text="Cancel",
@@ -788,7 +788,7 @@ class InterventionSorterApp(tk.Tk):
             dialog.destroy()
 
         tk.Button(bf, text="Proceed", font=FONT_BOLD,
-                  bg=NAVY, fg="white", relief="flat",
+                  bg="#1a1f2e", fg="white", relief="flat",
                   padx=16, pady=8, cursor="hand2",
                   command=on_proceed).pack(side="left", padx=(0, 8))
         tk.Button(bf, text="Cancel", font=FONT_MAIN,
@@ -1126,7 +1126,7 @@ class InterventionSorterApp(tk.Tk):
         self._report_run_btn = RoundedButton(
             btn_frame2, text='Generate Faculty Report',
             command=self._on_run_report_status,
-            bg=NAVY, fg="#ffffff", hover_bg=NAVY_HOVER,
+            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
             font=FONT_BOLD, padx=20, pady=9, radius=6,
         )
         self._report_run_btn.pack(side="left")
@@ -1303,7 +1303,7 @@ class InterventionSorterApp(tk.Tk):
         self._midterm_run_btn = RoundedButton(
             btn_frame, text='Run Midterm Sort',
             command=self._on_run_midterm,
-            bg=NAVY, fg="#ffffff", hover_bg=NAVY_HOVER,
+            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
             font=FONT_BOLD, padx=20, pady=9, radius=6,
         )
         self._midterm_run_btn.pack(side="left", padx=(0, 10))
@@ -1529,7 +1529,7 @@ class InterventionSorterApp(tk.Tk):
         self._trend_run_btn = RoundedButton(
             btn_frame, text='Generate Trend Report',
             command=self._on_run_trend,
-            bg=NAVY, fg="#ffffff", hover_bg=NAVY_HOVER,
+            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
             font=FONT_BOLD, padx=20, pady=9, radius=6,
         )
         self._trend_run_btn.pack(side="left", padx=(0, 10))
@@ -1880,7 +1880,7 @@ class InterventionSorterApp(tk.Tk):
         self._new_sem_btn = RoundedButton(
             action_frame, text='Start New Semester',
             command=self._on_new_semester,
-            bg=NAVY, fg="#ffffff", hover_bg=NAVY_HOVER,
+            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
             font=FONT_BOLD, padx=16, pady=9, radius=6,
         )
         self._new_sem_btn.pack(side="left", padx=(0, 8))
@@ -1896,7 +1896,7 @@ class InterventionSorterApp(tk.Tk):
         self._reset_sem_btn = RoundedButton(
             btn_frame, text='Reset Semester',
             command=self._on_reset_semester,
-            bg=RED_ACCENT, fg="#ffffff", hover_bg=RED_HOVER,
+            bg="#c53030", fg="#ffffff", hover_bg="#a12424",
             font=FONT_MAIN, padx=14, pady=8, radius=6,
         )
         self._reset_sem_btn.pack(side="left", padx=(0, 8))
@@ -2004,7 +2004,7 @@ class InterventionSorterApp(tk.Tk):
             dialog.destroy()
 
         tk.Button(bf, text="Create Semester", font=FONT_BOLD,
-                  bg=NAVY, fg="white", relief="flat",
+                  bg="#1a1f2e", fg="white", relief="flat",
                   padx=16, pady=8, cursor="hand2",
                   command=on_create).pack(side="left", padx=(0, 8))
 
@@ -2378,7 +2378,7 @@ class InterventionSorterApp(tk.Tk):
         btn_row.pack(fill="x", pady=(20, 8))
 
         tk.Button(btn_row, text="Save Settings",
-                  font=FONT_BOLD, bg=NAVY, fg="white",
+                  font=FONT_BOLD, bg="#1a1f2e", fg="white",
                   relief="flat", padx=20, pady=10, cursor="hand2",
                   command=self._on_save_settings).pack(side="left", padx=(0, 10))
 
@@ -2401,7 +2401,7 @@ class InterventionSorterApp(tk.Tk):
 
         # Header
         tk.Label(outer, text=f"{APP_NAME}  —  Version {APP_VERSION}",
-                 bg=PANEL_BG, fg=NAVY, font=FONT_HEADER).pack(anchor="w")
+                 bg=PANEL_BG, fg="#1a1f2e", font=FONT_HEADER).pack(anchor="w")
         tk.Label(outer, text="Academic Advising Intervention Workflow Tool",
                  bg=PANEL_BG, fg=TEXT_MUTED, font=FONT_MAIN).pack(anchor="w", pady=(2, 16))
 
@@ -2626,9 +2626,9 @@ def section_label(parent, text: str) -> tk.Label:
     """Red accent bar + uppercase label."""
     frame = tk.Frame(parent, bg=PANEL_BG)
     # Red accent bar on the left
-    tk.Frame(frame, bg=RED_ACCENT, width=3).pack(side="left", fill="y", padx=(0, 8))
+    tk.Frame(frame, bg="#c53030", width=3).pack(side="left", fill="y", padx=(0, 8))
     tk.Label(frame, text=text.upper(), bg=PANEL_BG,
-             fg=NAVY, font=FONT_TITLE).pack(side="left", anchor="w")
+             fg="#1a1f2e", font=FONT_TITLE).pack(side="left", anchor="w")
     return frame
 
 
@@ -2745,7 +2745,7 @@ class FilePickerRow(tk.Frame):
 
         browse_btn = tk.Button(
             self, text="Browse", font=FONT_BOLD,
-            bg=NAVY, fg="#ffffff", relief="flat",
+            bg="#1a1f2e", fg="#ffffff", relief="flat",
             padx=12, pady=5, cursor="hand2",
             activebackground=NAVY_LIGHT, activeforeground="#ffffff",
             command=lambda: self._browse(filetypes),
