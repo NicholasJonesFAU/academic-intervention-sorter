@@ -56,6 +56,7 @@ class PipelineInputs:
     group_dir: Path
     output_dir: Path
     exclude_previous: bool = False
+    skip_groups: set = None  # Group tab names to skip (students fall to buckets)
     season: str = ""
     checkpoint_type: str = "Progress Report"
 
@@ -162,7 +163,8 @@ class PipelineController:
             # Step 5 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
-            matcher.load_control_file(inputs.control_file, inputs.group_dir)
+            matcher.load_control_file(inputs.control_file, inputs.group_dir,
+                                              skip_groups=inputs.skip_groups)
             group_data = matcher.match(students_df)
 
             # Collect ordered group tab names (excluding unmatched buckets)
@@ -328,7 +330,8 @@ class PipelineController:
             # Try loading group matcher
             try:
                 matcher = GroupMatcher(self._qa_log)
-                matcher.load_control_file(inputs.control_file, inputs.group_dir)
+                matcher.load_control_file(inputs.control_file, inputs.group_dir,
+                                              skip_groups=inputs.skip_groups)
                 for g in matcher.group_definitions:
                     preview_info.append(f"Group '{g.tab_name}': {len(g.student_ids):,} IDs loaded")
             except Exception as exc:

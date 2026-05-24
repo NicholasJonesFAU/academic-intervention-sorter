@@ -56,19 +56,36 @@ class GroupMatcher:
     # Public API
     # ------------------------------------------------------------------
 
-    def load_control_file(self, control_path: Path, group_dir: Path) -> None:
+    def load_control_file(
+        self,
+        control_path: Path,
+        group_dir: Path,
+        skip_groups: set = None,
+    ) -> None:
         """
         Parse the control TXT file and load all group ID files.
 
         Args:
             control_path: Path to the TXT file (TabName|filename.xlsx per line)
             group_dir:    Directory where group Excel files are located
+            skip_groups:  Set of tab names to skip entirely (students fall to buckets)
         """
         self._group_dir = group_dir
+        self._skip_groups = set(skip_groups) if skip_groups else set()
         logger.info("GroupMatcher: Loading control file '%s'", control_path.name)
+        if self._skip_groups:
+            logger.info("GroupMatcher: Skipping groups: %s", self._skip_groups)
 
         lines = self._read_control_file(control_path)
         raw_groups = self._parse_control_lines(lines, control_path.name)
+
+        # Filter out skipped groups before loading files
+        if self._skip_groups:
+            raw_groups = [
+                (tab, fname) for tab, fname in raw_groups
+                if tab not in self._skip_groups
+            ]
+
         self._groups = self._load_group_files(raw_groups, group_dir)
 
         logger.info(
@@ -139,6 +156,19 @@ class GroupMatcher:
         )
 
         return result
+
+    def read_group_names(self, control_path: Path) -> List[tuple]:
+        """
+        Read group names from control file without loading xlsx files.
+        Returns list of (tab_name, filename) tuples.
+        Used to populate the group selection dialog.
+        """
+        try:
+            lines = self._read_control_file(control_path)
+            return self._parse_control_lines(lines, control_path.name)
+        except Exception as exc:
+            logger.warning("GroupMatcher: Could not read group names: %s", exc)
+            return []
 
     @property
     def group_definitions(self) -> List[GroupDefinition]:

@@ -354,6 +354,140 @@ class InterventionSorterApp(tk.Tk):
     # Actions
     # ------------------------------------------------------------------
 
+    def _show_group_selection_dialog(
+        self,
+        control_path: str,
+        group_dir: str,
+        checkpoint_name: str,
+    ) -> tuple:
+        """
+        Show a checklist of groups from the control file.
+        Returns (proceed: bool, skip_groups: set)
+        First run shows all checked; subsequent runs restore last selection.
+        """
+        from processors.group_matcher import GroupMatcher
+        from processors.semester_manager import SemesterManager
+
+        matcher = GroupMatcher(None.__class__.__mro__[0])  # dummy
+        try:
+            from utils.logging_utils import QALog
+            matcher = GroupMatcher(QALog())
+            from pathlib import Path
+            groups = matcher.read_group_names(Path(control_path))
+        except Exception as exc:
+            # Can't read groups — just proceed with all
+            return True, set()
+
+        if not groups:
+            return True, set()
+
+        # Get previously saved selection
+        sm = SemesterManager()
+        saved_selection = sm.get_group_selection(checkpoint_name)
+        # saved_selection is the list of SELECTED groups from last run
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Select Groups — {checkpoint_name}")
+        dialog.geometry("460x520")
+        dialog.configure(bg=PANEL_BG)
+        dialog.resizable(False, True)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        result = {"proceed": False, "skip_groups": set()}
+
+        # Header
+        tk.Label(dialog,
+                 text=f"Select which groups to produce for this run.",
+                 bg=PANEL_BG, fg=TEXT_FG, font=FONT_BOLD,
+                 wraplength=420).pack(pady=(16, 2), padx=20, anchor="w")
+        tk.Label(dialog,
+                 text="Unchecked groups will be skipped — their students go to unmatched buckets.",
+                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB,
+                 wraplength=420).pack(padx=20, anchor="w")
+
+        ttk.Separator(dialog, orient="horizontal").pack(fill="x", pady=8, padx=20)
+
+        # Scrollable group list
+        list_frame = tk.Frame(dialog, bg=PANEL_BG)
+        list_frame.pack(fill="both", expand=True, padx=20)
+
+        check_vars = {}
+        for tab_name, filename in groups:
+            var = tk.BooleanVar(value=(
+                tab_name in saved_selection if saved_selection else True
+            ))
+            check_vars[tab_name] = var
+            row = tk.Frame(list_frame, bg=PANEL_BG)
+            row.pack(fill="x", pady=2)
+            tk.Checkbutton(
+                row, text=f"  {tab_name}",
+                variable=var,
+                bg=PANEL_BG, fg=TEXT_FG, font=FONT_BOLD,
+                activebackground=PANEL_BG, selectcolor="white",
+                cursor="hand2",
+            ).pack(side="left")
+            tk.Label(row, text=f"({filename})",
+                     bg=PANEL_BG, fg="#90A4AE", font=FONT_SUB).pack(side="left")
+
+        ttk.Separator(dialog, orient="horizontal").pack(fill="x", pady=8, padx=20)
+
+        # Unmatched buckets (always included, shown as info)
+        tk.Label(dialog,
+                 text="✓  Risk_1_2  and  Risk_3_Plus  always included",
+                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB).pack(padx=20, anchor="w")
+
+        ttk.Separator(dialog, orient="horizontal").pack(fill="x", pady=8, padx=20)
+
+        # Select all / none shortcuts
+        shortcut_frame = tk.Frame(dialog, bg=PANEL_BG)
+        shortcut_frame.pack(fill="x", padx=20, pady=(0, 8))
+        tk.Button(shortcut_frame, text="Select All",
+                  font=FONT_SUB, bg="#78909C", fg="white",
+                  relief="flat", padx=8, pady=4, cursor="hand2",
+                  command=lambda: [v.set(True) for v in check_vars.values()]
+                  ).pack(side="left", padx=(0, 6))
+        tk.Button(shortcut_frame, text="Select None",
+                  font=FONT_SUB, bg="#78909C", fg="white",
+                  relief="flat", padx=8, pady=4, cursor="hand2",
+                  command=lambda: [v.set(False) for v in check_vars.values()]
+                  ).pack(side="left")
+
+        # Action buttons
+        bf = tk.Frame(dialog, bg=PANEL_BG)
+        bf.pack(fill="x", padx=20, pady=(0, 16))
+
+        def on_run():
+            selected = [name for name, var in check_vars.items() if var.get()]
+            skip = {name for name in check_vars if not check_vars[name].get()}
+            if not selected:
+                messagebox.showwarning("No Groups Selected",
+                    "Please select at least one group, or cancel.",
+                    parent=dialog)
+                return
+            # Save selection to semester
+            sm = SemesterManager()
+            if sm.has_active_semester():
+                sm.save_group_selection(checkpoint_name, selected)
+            result["proceed"] = True
+            result["skip_groups"] = skip
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        tk.Button(bf, text="▶  Run with Selected Groups",
+                  font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
+                  relief="flat", padx=16, pady=8, cursor="hand2",
+                  command=on_run).pack(side="left", padx=(0, 8))
+        tk.Button(bf, text="Cancel",
+                  font=FONT_MAIN, bg="#78909C", fg="white",
+                  relief="flat", padx=12, pady=8, cursor="hand2",
+                  command=on_cancel).pack(side="left")
+
+        dialog.wait_window()
+        return result["proceed"], result["skip_groups"]
+
     def _ensure_season_set(self) -> bool:
         """
         Check that a season name and checkpoint type are set.
@@ -456,6 +590,18 @@ class InterventionSorterApp(tk.Tk):
         inputs = self._collect_inputs()
         if inputs is None:
             return
+        # Group selection dialog
+        if self._control_picker.path and self._group_dir_picker.path:
+            checkpoint = (self._checkpoint_type_var.get()
+                         if hasattr(self, "_checkpoint_type_var") else "Progress Report 1")
+            proceed, skip_groups = self._show_group_selection_dialog(
+                self._control_picker.path,
+                self._group_dir_picker.path,
+                checkpoint,
+            )
+            if not proceed:
+                return
+            inputs.skip_groups = skip_groups
         self._start_processing(inputs, validate_only=False)
 
     def _on_validate(self):
@@ -998,6 +1144,17 @@ class InterventionSorterApp(tk.Tk):
             season=season,
             checkpoint_type="Midterm",
         )
+
+        # Group selection dialog
+        if paths["Group Control File"] and paths["Group Files Folder"]:
+            proceed, skip_groups = self._show_group_selection_dialog(
+                paths["Group Control File"],
+                paths["Group Files Folder"],
+                "Midterm",
+            )
+            if not proceed:
+                return
+            inputs.skip_groups = skip_groups
 
         self._midterm_processing = True
         self._midterm_run_btn.config(state="disabled")

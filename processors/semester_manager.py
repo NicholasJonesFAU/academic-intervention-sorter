@@ -47,6 +47,11 @@ class CheckpointRun:
     students_unmatched: int   = 0
     output_file:        str   = ""
     last_run:           str   = ""
+    selected_groups:    list  = None  # None = all groups; list = selected subset
+
+    def __post_init__(self):
+        if self.selected_groups is None:
+            self.selected_groups = []
 
 
 @dataclass
@@ -154,6 +159,28 @@ class SemesterManager:
         if group_folder and not sem.group_folder:
             sem.group_folder = group_folder
         self._save()
+
+    def save_group_selection(
+        self,
+        checkpoint_name: str,
+        selected_groups: list,
+    ) -> None:
+        """Save the group selection for a checkpoint."""
+        sem = self.active_semester()
+        if not sem:
+            return
+        cp = sem.get_checkpoint(checkpoint_name)
+        cp.selected_groups = list(selected_groups)
+        sem.set_checkpoint(cp)
+        self._save()
+
+    def get_group_selection(self, checkpoint_name: str) -> list:
+        """Get saved group selection for a checkpoint (empty list = all groups)."""
+        sem = self.active_semester()
+        if not sem:
+            return []
+        cp = sem.get_checkpoint(checkpoint_name)
+        return list(cp.selected_groups) if cp.selected_groups else []
 
     def record_run(
         self,
