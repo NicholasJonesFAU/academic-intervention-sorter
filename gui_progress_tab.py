@@ -6,6 +6,7 @@ from tkinter import ttk, scrolledtext
 import gui_theme as theme
 from gui_widgets import section_label, RoundedButton, FilePickerRow
 from gui_logging import configure_log_tags, DEFAULT_LOG_TAGS
+from gui_demo import load_progress_demo_files
 
 
 def build_progress_report_sorter_tab(app, tab):
@@ -111,7 +112,14 @@ def build_progress_report_sorter_tab(app, tab):
     command =app ._on_clear ,
     **theme.BTN_SECONDARY_STYLE ,font =theme.FONT_MAIN ,padx =14 ,pady =8 ,
     )
-    app ._clear_btn .pack (side ="left")
+    app ._clear_btn .pack (side ="left",padx =(0 ,10 ))
+
+    app ._demo_btn =RoundedButton (
+    btn_frame ,text ='Load Demo Files',
+    command =lambda :load_progress_demo_files (app ),
+    **theme.BTN_SUCCESS_STYLE ,font =theme.FONT_MAIN ,padx =14 ,pady =8 ,
+    )
+    app ._demo_btn .pack (side ="left")
 
     # ── Progress bar ───────────────────────────────────────────
     app ._progress_var =tk .DoubleVar (value =0 )
