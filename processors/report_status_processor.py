@@ -8,15 +8,11 @@ from typing import Dict
 import pandas as pd
 
 from processors.department_mapper import DepartmentMapper
+from utils.settings_manager import get_settings
 
 logger = logging.getLogger("intervention_sorter")
 
-REQUIRED_COLUMNS = [
-    "Professor Requested First Name",
-    "Professor Requested Last Name",
-    "Course Number",
-    "Responded",
-]
+# Required columns now come from settings_manager
 
 RESPONDED_TRUE = {"yes", "true", "1", "y"}
 
@@ -52,7 +48,7 @@ class ReportStatusProcessor:
         df.columns = [str(c).strip() for c in df.columns]
 
         # Validate required columns
-        missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
+        missing = [c for c in get_settings().faculty_required_columns if c not in df.columns]
         if missing:
             raise ValueError(
                 f"Status file missing required columns: {missing}\n"
@@ -62,9 +58,10 @@ class ReportStatusProcessor:
         df = df.copy()
 
         # Normalize core columns
-        df["Professor Requested First Name"] = df["Professor Requested First Name"].str.strip()
-        df["Professor Requested Last Name"]  = df["Professor Requested Last Name"].str.strip()
-        df["Course Number"] = df["Course Number"].str.strip().str.upper()
+        fac = get_settings().faculty_map
+        df["Professor Requested First Name"] = df[fac["first_name"]].str.strip()
+        df["Professor Requested Last Name"]  = df[fac["last_name"]].str.strip()
+        df["Course Number"] = df[get_settings().faculty_map["course_number"]].str.strip().str.upper()
         df["Section Name"]  = df["Section Name"].str.strip() if "Section Name" in df.columns else ""
 
         # Email — find it by stripped name regardless of spacing in header
@@ -76,7 +73,7 @@ class ReportStatusProcessor:
             logger.warning("ReportStatusProcessor: No email column found — email will be blank.")
 
         # Responded flag
-        df["Submitted"] = df["Responded"].str.strip().str.lower().isin(RESPONDED_TRUE)
+        df["Submitted"] = df[get_settings().faculty_map["responded"]].str.strip().str.lower().isin(RESPONDED_TRUE)
 
         # Full name
         df["Faculty Name"] = (

@@ -13,12 +13,8 @@ from typing import Tuple
 
 import pandas as pd
 
-from utils.config import (
-    MIDTERM_COLUMN_MAP,
-    MIDTERM_REQUIRED_COLUMNS,
-    MIDTERM_AT_RISK_GRADES,
-    PROGRESS_REPORT_EXTENSIONS,
-)
+from utils.config import MIDTERM_AT_RISK_GRADES, PROGRESS_REPORT_EXTENSIONS
+from utils.settings_manager import get_settings
 from utils.normalization import normalize_student_id_series, normalize_string_series
 from utils.validation import validate_required_columns
 from utils.logging_utils import QALog
@@ -62,7 +58,7 @@ class MidtermProcessor:
 
         # Validate required columns
         validation = validate_required_columns(
-            df_raw, MIDTERM_REQUIRED_COLUMNS, f"Midterm File ({file_path.name})"
+            df_raw, get_settings().midterm_required_columns, f"Midterm File ({file_path.name})"
         )
         if not validation.is_valid:
             raise ValueError("\n".join(validation.errors))
@@ -119,7 +115,7 @@ class MidtermProcessor:
             ) from exc
 
     def _normalize_columns(self, df: pd.DataFrame, source: str) -> pd.DataFrame:
-        col = MIDTERM_COLUMN_MAP
+        col = get_settings().midterm_map
         result = df.copy()
 
         result["Student ID"]   = normalize_student_id_series(result[col["student_id"]])

@@ -19,8 +19,19 @@ from dataclasses import dataclass, field, asdict
 from utils.config import (
     PROGRESS_REPORT_COLUMN_MAP as _DEFAULT_PROGRESS,
     CONTACT_REPORT_COLUMN_MAP   as _DEFAULT_CONTACT,
+    MIDTERM_COLUMN_MAP          as _DEFAULT_MIDTERM,
     BASE_DIR,
 )
+
+# Default faculty report column names
+_DEFAULT_FACULTY = {
+    "first_name":   "Professor Requested First Name",
+    "last_name":    "Professor Requested Last Name",
+    "email":        "Professor Requested Email",
+    "course_number": "Course Number",
+    "section_name": "Section Name",
+    "responded":    "Responded",
+}
 
 logger = logging.getLogger("intervention_sorter")
 
@@ -33,6 +44,8 @@ class AppSettings:
 
     progress_report_map: Dict[str, str] = field(default_factory=lambda: dict(_DEFAULT_PROGRESS))
     contact_report_map:  Dict[str, str] = field(default_factory=lambda: dict(_DEFAULT_CONTACT))
+    midterm_map:         Dict[str, str] = field(default_factory=lambda: dict(_DEFAULT_MIDTERM))
+    faculty_map:         Dict[str, str] = field(default_factory=lambda: dict(_DEFAULT_FACULTY))
 
     def save(self) -> None:
         """Write current settings to settings.json."""
@@ -53,6 +66,8 @@ class AppSettings:
         """Reset all mappings to config.py defaults."""
         self.progress_report_map = dict(_DEFAULT_PROGRESS)
         self.contact_report_map  = dict(_DEFAULT_CONTACT)
+        self.midterm_map         = dict(_DEFAULT_MIDTERM)
+        self.faculty_map         = dict(_DEFAULT_FACULTY)
 
     # Convenience properties so processors can use the same names as before
     @property
@@ -63,6 +78,17 @@ class AppSettings:
     @property
     def contact_required_columns(self):
         return [self.contact_report_map["student_id"]]
+
+    @property
+    def midterm_required_columns(self):
+        m = self.midterm_map
+        return [m["student_id"], m["last_name"], m["first_name"],
+                m["course_prefix"], m["course_number"], m["midterm_grade"]]
+
+    @property
+    def faculty_required_columns(self):
+        m = self.faculty_map
+        return [m["first_name"], m["last_name"], m["course_number"], m["responded"]]
 
     @property
     def phone_fallback_columns(self):
@@ -105,6 +131,10 @@ def _load() -> AppSettings:
             settings.progress_report_map.update(data["progress_report_map"])
         if "contact_report_map" in data:
             settings.contact_report_map.update(data["contact_report_map"])
+        if "midterm_map" in data:
+            settings.midterm_map.update(data["midterm_map"])
+        if "faculty_map" in data:
+            settings.faculty_map.update(data["faculty_map"])
 
         logger.info("SettingsManager: Loaded settings from '%s'", SETTINGS_PATH)
         return settings

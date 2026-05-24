@@ -1,0 +1,50 @@
+{
+  "semesters": [
+    {
+      "semester_id": "20260524124655",
+      "name": "Spring 2026",
+      "status": "Abandoned",
+      "created": "2026-05-24 12:46:55",
+      "completed": "2026-05-24 12:52:16",
+      "master_report": "",
+      "contact_report": "",
+      "control_file": "",
+      "group_folder": "",
+      "checkpoints": {
+        "Progress Report 1": {
+          "name": "Progress Report 1",
+          "status": "Not Started",
+          "run_count": 0,
+          "students_processed": 0,
+          "students_assigned": 0,
+          "students_unmatched": 0,
+          "output_file": "",
+          "last_run": "",
+          "selected_groups": []
+        },
+        "Midterm": {
+          "name": "Midterm",
+          "status": "Not Started",
+          "run_count": 0,
+          "students_processed": 0,
+          "students_assigned": 0,
+          "students_unmatched": 0,
+          "output_file": "",
+          "last_run": "",
+          "selected_groups": []
+        },
+        "Progress Report 2": {
+          "name": "Progress Report 2",
+          "status": "Not Started",
+          "run_count": 0,
+          "students_processed": 0,
+          "students_assigned": 0,
+          "students_unmatched": 0,
+          "output_file": "",
+          "last_run": "",
+          "selected_groups": []
+        }
+      }
+    }
+  ]
+}

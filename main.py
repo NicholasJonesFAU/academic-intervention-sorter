@@ -2034,12 +2034,12 @@ class InterventionSorterApp(tk.Tk):
 
 
     def _build_settings_tab(self):
-        """Build the Settings tab — column mapping editor."""
-        tab3 = self._settings_tab
+        """Build the Settings tab — column mapping editor for all file types."""
+        tab = self._settings_tab
         settings = get_settings()
 
-        canvas = tk.Canvas(tab3, bg=PANEL_BG, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(tab3, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(tab, bg=PANEL_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
@@ -2053,23 +2053,25 @@ class InterventionSorterApp(tk.Tk):
         inner.bind("<Configure>", on_configure)
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
 
-        # Mouse wheel scrolling
         def on_mousewheel(e):
             canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         self._setting_vars = {}
 
-        def add_section(parent, title, color):
+        def add_section(parent, title, color, subtitle=""):
             tk.Label(parent, text=title, bg=color, fg="white",
                      font=FONT_BOLD, padx=8, pady=6,
-                     anchor="w").pack(fill="x", pady=(16, 4))
+                     anchor="w").pack(fill="x", pady=(16, 2))
+            if subtitle:
+                tk.Label(parent, text=subtitle, bg=PANEL_BG, fg="#546E7A",
+                         font=FONT_SUB).pack(anchor="w", pady=(0, 4))
 
         def add_field(parent, key, label, value, tooltip=""):
             row = tk.Frame(parent, bg=PANEL_BG)
-            row.pack(fill="x", pady=3)
+            row.pack(fill="x", pady=2)
             tk.Label(row, text=label, bg=PANEL_BG, fg=TEXT_FG,
-                     font=FONT_MAIN, width=32, anchor="w").pack(side="left")
+                     font=FONT_MAIN, width=30, anchor="w").pack(side="left")
             var = tk.StringVar(value=value)
             self._setting_vars[key] = var
             entry = tk.Entry(row, textvariable=var, font=FONT_MAIN,
@@ -2081,64 +2083,90 @@ class InterventionSorterApp(tk.Tk):
                 tk.Label(row, text=f"  {tooltip}", bg=PANEL_BG,
                          fg="#78909C", font=FONT_SUB).pack(side="left")
 
-        # Progress Report section
-        add_section(inner, "Progress Report — Column Names", BTN_PRIMARY)
-        tk.Label(inner, text="Enter the exact column header from your file for each field.",
-                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB).pack(anchor="w")
-
+        # ── Progress Report ───────────────────────────────────────
+        add_section(inner, "📋  Progress Report — Column Names", BTN_PRIMARY,
+                    "Column headers from your Navigate/EAB progress report export")
         pm = settings.progress_report_map
-        pr_fields = [
-            ("progress.student_name",  "Student Name",           pm.get("student_name",  ""), "Full name column"),
-            ("progress.student_id",    "Student ID",             pm.get("student_id",    ""), "Z-number column"),
-            ("progress.course_number", "Course Number",          pm.get("course_number", ""), "e.g. MAC1105"),
-            ("progress.course",        "Course Name",            pm.get("course",        ""), "Full course title"),
-            ("progress.at_risk",       "At-Risk Flag",           pm.get("at_risk",       ""), "Column containing Yes/No/True/False"),
-            ("progress.letter_grade",  "Grade",                  pm.get("letter_grade",  ""), "Progress report grade"),
-            ("progress.absences",      "Absences",               pm.get("absences",      ""), "Number of absences"),
-            ("progress.alert_reasons", "Alert Reasons",          pm.get("alert_reasons", ""), ""),
-            ("progress.comments",      "Comments",               pm.get("comments",      ""), "Professor comments"),
-        ]
-        for key, label, value, tip in pr_fields:
-            add_field(inner, key, label, value, tip)
+        for key, label, tip in [
+            ("student_name",  "Student Name",                   "Full student name"),
+            ("student_id",    "Student ID",                     "Z-number column"),
+            ("course_number", "Course Number",                  "e.g. MAC1105"),
+            ("course",        "Course Name",                    "Full course title"),
+            ("at_risk",       "At-Risk Flag",                   "Column with Yes/No/True/False"),
+            ("letter_grade",  "Grade",                          "Progress report grade column"),
+            ("absences",      "Absences",                       "Number of absences"),
+            ("alert_reasons", "Alert Reasons",                  ""),
+            ("comments",      "Comments",                       "Professor free-text comments"),
+        ]:
+            add_field(inner, f"progress.{key}", label, pm.get(key, ""), tip)
 
-        # Contact Report section
-        add_section(inner, "Contact Report — Column Names", "#375623")
-        tk.Label(inner, text="Enter the exact column header from your contact export for each field.",
-                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB).pack(anchor="w")
-
+        # ── Contact Report ────────────────────────────────────────
+        add_section(inner, "📇  Contact Report — Column Names", "#375623",
+                    "Column headers from your student contact export")
         cm = settings.contact_report_map
-        cr_fields = [
-            ("contact.student_id",      "Student ID",       cm.get("student_id",      ""), "Must match progress report ID"),
-            ("contact.phone_cellular",  "Cellular Phone",   cm.get("phone_cellular",  ""), "First preference"),
-            ("contact.phone_local",     "Local Phone",      cm.get("phone_local",     ""), "Second preference"),
-            ("contact.phone_permanent", "Permanent Phone",  cm.get("phone_permanent", ""), "Third preference"),
-            ("contact.email",           "Email",            cm.get("email",           ""), ""),
-        ]
-        for key, label, value, tip in cr_fields:
-            add_field(inner, key, label, value, tip)
+        for key, label, tip in [
+            ("student_id",      "Student ID",        "Must match progress report ID column"),
+            ("phone_cellular",  "Cellular Phone",    "First preference for outreach"),
+            ("phone_local",     "Local Phone",       "Second preference"),
+            ("phone_permanent", "Permanent Phone",   "Third preference"),
+            ("email",           "Email",             "Student email column"),
+        ]:
+            add_field(inner, f"contact.{key}", label, cm.get(key, ""), tip)
 
-        # Buttons
+        # ── Midterm Grade Report ──────────────────────────────────
+        add_section(inner, "📝  Midterm Grade File — Column Names", "#4A235A",
+                    "Column headers from your Canvas midterm grade export")
+        mm = settings.midterm_map
+        for key, label, tip in [
+            ("student_id",    "Student ID",        "Z# column"),
+            ("last_name",     "Last Name",         ""),
+            ("first_name",    "First Name",        ""),
+            ("email",         "Email",             "FAU email column"),
+            ("college",       "College",           ""),
+            ("major",         "Major",             ""),
+            ("classification","Classification",    "e.g. Freshman, Sophomore"),
+            ("course_prefix", "Course Prefix",     "e.g. MAC, ENC"),
+            ("course_number", "Course Number",     "Numeric part, e.g. 1105"),
+            ("course_name",   "Course Name",       "Full course title"),
+            ("section",       "Section Number",    ""),
+            ("credit_hrs",    "Credit Hours",      ""),
+            ("midterm_grade", "Midterm Grade",     "Column containing letter grades"),
+        ]:
+            add_field(inner, f"midterm.{key}", label, mm.get(key, ""), tip)
+
+        # ── Faculty Report Status ─────────────────────────────────
+        add_section(inner, "📊  Faculty Report Status — Column Names", "#843C0C",
+                    "Column headers from your Navigate progress report campaign export")
+        fm = settings.faculty_map
+        for key, label, tip in [
+            ("first_name",    "Professor First Name",  "Professor Requested First Name"),
+            ("last_name",     "Professor Last Name",   "Professor Requested Last Name"),
+            ("email",         "Professor Email",       "Professor email column"),
+            ("course_number", "Course Number",         "Used to map to department/college"),
+            ("section_name",  "Section Name",          "Course section identifier"),
+            ("responded",     "Responded Flag",        "Column with Yes/No submission status"),
+        ]:
+            add_field(inner, f"faculty.{key}", label, fm.get(key, ""), tip)
+
+        # ── Buttons ───────────────────────────────────────────────
         btn_row = tk.Frame(inner, bg=PANEL_BG)
         btn_row.pack(fill="x", pady=(20, 8))
 
-        tk.Button(
-            btn_row, text="💾  Save Settings",
-            font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
-            relief="flat", padx=20, pady=10, cursor="hand2",
-            command=self._on_save_settings,
-        ).pack(side="left", padx=(0, 10))
+        tk.Button(btn_row, text="💾  Save Settings",
+                  font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
+                  relief="flat", padx=20, pady=10, cursor="hand2",
+                  command=self._on_save_settings).pack(side="left", padx=(0, 10))
 
-        tk.Button(
-            btn_row, text="↩  Reset to Defaults",
-            font=FONT_MAIN, bg="#78909C", fg="white",
-            relief="flat", padx=14, pady=10, cursor="hand2",
-            command=self._on_reset_settings,
-        ).pack(side="left")
+        tk.Button(btn_row, text="↩  Reset to Defaults",
+                  font=FONT_MAIN, bg="#78909C", fg="white",
+                  relief="flat", padx=14, pady=10, cursor="hand2",
+                  command=self._on_reset_settings).pack(side="left")
 
         self._settings_status = tk.Label(
             inner, text="", bg=PANEL_BG, fg=SUCCESS_COLOR, font=FONT_MAIN
         )
         self._settings_status.pack(anchor="w", pady=(8, 0))
+
 
     def _on_save_settings(self):
         """Read all entry fields and save to settings.json."""
@@ -2151,12 +2179,16 @@ class InterventionSorterApp(tk.Tk):
                 settings.progress_report_map[field_name] = value
             elif section == "contact":
                 settings.contact_report_map[field_name] = value
+            elif section == "midterm":
+                settings.midterm_map[field_name] = value
+            elif section == "faculty":
+                settings.faculty_map[field_name] = value
 
         try:
             settings.save()
             reload_settings()
             self._settings_status.config(
-                text="✅ Settings saved successfully! Changes take effect on next run.",
+                text="✅ Settings saved! Changes take effect on next run.",
                 fg=SUCCESS_COLOR,
             )
         except Exception as exc:
@@ -2166,10 +2198,9 @@ class InterventionSorterApp(tk.Tk):
 
     def _on_reset_settings(self):
         """Reset all fields to config.py defaults."""
-        from utils.config import PROGRESS_REPORT_COLUMN_MAP, CONTACT_REPORT_COLUMN_MAP
         if not messagebox.askyesno(
             "Reset Settings",
-            "Reset all column mappings to defaults?\nThis cannot be undone."
+            "Reset ALL column mappings to defaults?\nThis cannot be undone."
         ):
             return
 
@@ -2178,32 +2209,19 @@ class InterventionSorterApp(tk.Tk):
         settings.save()
         reload_settings()
 
-        # Refresh entry fields
-        pm = settings.progress_report_map
-        cm = settings.contact_report_map
-        mapping = {
-            "progress.student_name":   pm.get("student_name",  ""),
-            "progress.student_id":     pm.get("student_id",    ""),
-            "progress.course_number":  pm.get("course_number", ""),
-            "progress.course":         pm.get("course",        ""),
-            "progress.at_risk":        pm.get("at_risk",       ""),
-            "progress.letter_grade":   pm.get("letter_grade",  ""),
-            "progress.absences":       pm.get("absences",      ""),
-            "progress.alert_reasons":  pm.get("alert_reasons", ""),
-            "progress.comments":       pm.get("comments",      ""),
-            "contact.student_id":      cm.get("student_id",      ""),
-            "contact.phone_cellular":  cm.get("phone_cellular",  ""),
-            "contact.phone_local":     cm.get("phone_local",     ""),
-            "contact.phone_permanent": cm.get("phone_permanent", ""),
-            "contact.email":           cm.get("email",           ""),
+        # Refresh all entry fields from reset values
+        all_maps = {
+            "progress": settings.progress_report_map,
+            "contact":  settings.contact_report_map,
+            "midterm":  settings.midterm_map,
+            "faculty":  settings.faculty_map,
         }
-        for key, value in mapping.items():
-            if key in self._setting_vars:
-                self._setting_vars[key].set(value)
+        for key, var in self._setting_vars.items():
+            section, field_name = key.split(".", 1)
+            if section in all_maps:
+                var.set(all_maps[section].get(field_name, ""))
 
-        self._settings_status.config(
-            text="↩ Reset to defaults.", fg="#2F5496"
-        )
+        self._settings_status.config(text="↩ Reset to defaults.", fg="#2F5496")
 
     def _report_log(self, message: str, tag: str = "info"):
         self._report_log_box.config(state="normal")
