@@ -247,6 +247,25 @@ class InterventionSorterApp(tk.Tk):
         )
         self._output_picker.pack(fill="x", pady=4)
 
+        # Exclude previously assigned checkbox
+        chk_frame = tk.Frame(content, bg=PANEL_BG)
+        chk_frame.pack(fill="x", pady=(8, 0))
+        tk.Checkbutton(
+            chk_frame,
+            text="Exclude students already assigned in a previous run this campaign",
+            variable=self._exclude_var,
+            bg=PANEL_BG, fg=TEXT_FG,
+            font=FONT_MAIN,
+            activebackground=PANEL_BG,
+            selectcolor="white",
+            cursor="hand2",
+        ).pack(side="left")
+        tk.Label(
+            chk_frame,
+            text="(reads/writes assigned_students.txt in output folder)",
+            bg=PANEL_BG, fg="#78909C", font=FONT_SUB,
+        ).pack(side="left", padx=(8, 0))
+
         ttk.Separator(content, orient="horizontal").pack(fill="x", pady=14)
 
         # ── Buttons ────────────────────────────────────────────────
@@ -362,12 +381,17 @@ class InterventionSorterApp(tk.Tk):
             )
             return None
 
+        season = self._campaign_season_var.get().strip() if hasattr(self, "_campaign_season_var") else ""
+        checkpoint = self._checkpoint_type_var.get() if hasattr(self, "_checkpoint_type_var") else "Progress Report"
         return PipelineInputs(
             progress_report=Path(paths["Progress Report"]),
             contact_report=Path(paths["Contact Report"]),
             control_file=Path(paths["Group Control File"]),
             group_dir=Path(paths["Group Files Folder"]),
             output_dir=Path(paths["Output Folder"]),
+            exclude_previous=self._exclude_var.get(),
+            season=season,
+            checkpoint_type=checkpoint,
         )
 
     def _start_processing(self, inputs: PipelineInputs, validate_only: bool):

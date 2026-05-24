@@ -240,7 +240,7 @@ LOG_LEVEL = "INFO"
 # ---------------------------------------------------------------------------
 # Output filename pattern
 # ---------------------------------------------------------------------------
-OUTPUT_FILENAME_PATTERN = "InterventionSort_{timestamp}.xlsx"
+OUTPUT_FILENAME_PATTERN = "ProgressReport_{timestamp}.xlsx"
 
 # ---------------------------------------------------------------------------
 # Supported encodings for TXT control file
