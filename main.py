@@ -21,6 +21,7 @@ from gui_report_status_tab import build_report_status_tab
 from gui_report_status_actions import run_report_status, handle_report_status_complete
 from gui_midterm_tab import build_midterm_tab
 from gui_trend_tab import build_trend_tab
+from gui_trend_actions import run_trend_report, generate_master_report, handle_trend_complete, handle_master_report_done
 from gui_campaign_tab import build_campaign_tab
 from gui_settings_tab import build_settings_tab
 from gui_help_tab import build_help_tab
@@ -341,167 +342,22 @@ class InterventionSorterApp (tk .Tk ):
     def _build_trend_tab(self):
         build_trend_tab(self)
 
-    def _on_run_trend (self ):
-        if self ._trend_processing :
-            return 
+    def _on_run_trend(self):
+        run_trend_report(self)
 
-        paths ={
-        "PR1":self ._trend_pr1_picker .path ,
-        "Mid":self ._trend_mid_picker .path ,
-        "PR2":self ._trend_pr2_picker .path ,
-        "Output":self ._trend_output_picker .path ,
-        }
+    def _on_generate_master_report(self):
+        generate_master_report(self)
 
-        # At least one workbook required; output always required
-        if not any ([paths ["PR1"],paths ["Mid"],paths ["PR2"]]):
-            messagebox .showerror ("Missing Input",
-            "Please select at least one output workbook.")
-            return 
-        if not paths ["Output"]:
-            messagebox .showerror ("Missing Input","Please select an output folder.")
-            return 
+    def _on_master_report_done(self, success, message):
+        handle_master_report_done(self, success, message)
 
-        self ._trend_processing =True 
-        self ._trend_run_btn .config (state ="disabled")
-        self ._trend_progress_bar .start (12 )
-        self ._trend_log_write ("="*55 ,"info")
-        self ._trend_log_write ("GENERATING CAMPAIGN TREND REPORT","step")
-        self ._trend_log_write ("="*55 ,"info")
+    def _on_trend_complete(self, success, message, overall):
+        handle_trend_complete(self, success, message, overall)
 
-        pr1_path =Path (paths ["PR1"])if paths ["PR1"]else None 
-        mid_path =Path (paths ["Mid"])if paths ["Mid"]else None 
-        pr2_path =Path (paths ["PR2"])if paths ["PR2"]else None 
-        out_dir =Path (paths ["Output"])
-        pr1_label =self ._trend_pr1_label .get ().strip ()or "PR1"
-        mid_label =self ._trend_mid_label .get ().strip ()or "Midterm"
-        pr2_label =self ._trend_pr2_label .get ().strip ()or "PR2"
-
-        import threading 
-        def _worker ():
-            try :
-                from datetime import datetime 
-                from utils .config import TREND_OUTPUT_FILENAME_PATTERN ,LOG_DATE_FORMAT 
-                timestamp =datetime .now ().strftime (LOG_DATE_FORMAT )
-                out_path =out_dir /TREND_OUTPUT_FILENAME_PATTERN .format (timestamp =timestamp )
-                out_dir .mkdir (parents =True ,exist_ok =True )
-
-                self .after (0 ,self ._trend_log_write ,"Loading workbooks...","step")
-                analyzer =TrendAnalyzer ()
-                analyzer .load (pr1_path ,mid_path ,pr2_path )
-
-                overall =analyzer .overall_stats ()
-                self .after (0 ,self ._trend_log_write ,
-                f"Total unique at-risk students: {overall ['total_unique_students']:,}","info")
-                if pr1_path :
-                    self .after (0 ,self ._trend_log_write ,
-                    f"{pr1_label }: {overall ['pr1_count']:,} students","info")
-                if mid_path :
-                    self .after (0 ,self ._trend_log_write ,
-                    f"{mid_label }: {overall ['mid_count']:,} students","info")
-                if pr2_path :
-                    self .after (0 ,self ._trend_log_write ,
-                    f"{pr2_label }: {overall ['pr2_count']:,} students","info")
-
-                self .after (0 ,self ._trend_log_write ,"Building report with charts...","step")
-                exporter =TrendExporter ()
-                exporter .export (analyzer ,out_path ,pr1_label ,mid_label ,pr2_label )
-
-                self .after (0 ,self ._on_trend_complete ,True ,str (out_path ),overall )
-            except Exception :
-                import traceback 
-                self .after (0 ,self ._on_trend_complete ,False ,traceback .format_exc (),{})
-
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _on_generate_master_report (self ):
-        """Generate the end-of-semester master season report."""
-        out_dir =self ._master_output_picker .path 
-        if not out_dir :
-            messagebox .showerror ("Missing Input","Please select an output folder.")
-            return 
-
-        paths ={
-        "pr1":self ._master_pr1_picker .path ,
-        "mid":self ._master_mid_picker .path ,
-        "pr2":self ._master_pr2_picker .path ,
-        }
-        if not any (paths .values ()):
-            messagebox .showerror ("Missing Input",
-            "Please select at least one output workbook.")
-            return 
-
-        season =self ._campaign_season_var .get ().strip ()if hasattr (self ,"_campaign_season_var")else ""
-        pr1_label =self ._trend_pr1_label .get ().strip ()or "Progress Report 1"
-        mid_label =self ._trend_mid_label .get ().strip ()or "Midterm"
-        pr2_label =self ._trend_pr2_label .get ().strip ()or "Progress Report 2"
-
-        self ._trend_log_write ("="*55 ,"info")
-        self ._trend_log_write ("GENERATING MASTER SEASON REPORT","step")
-        self ._trend_log_write ("="*55 ,"info")
-
-        import threading 
-        def _worker ():
-            try :
-                from datetime import datetime 
-                from utils .config import LOG_DATE_FORMAT 
-                timestamp =datetime .now ().strftime (LOG_DATE_FORMAT )
-                season_label =season .replace (" ","_")if season else "Season"
-                out_path =Path (out_dir )/f"MasterReport_{season_label }_{timestamp }.xlsx"
-                Path (out_dir ).mkdir (parents =True ,exist_ok =True )
-
-                self .after (0 ,self ._trend_log_write ,"Loading output workbooks...","step")
-                gen =SeasonReportGenerator ()
-                gen .generate (
-                pr1_path =Path (paths ["pr1"])if paths ["pr1"]else None ,
-                mid_path =Path (paths ["mid"])if paths ["mid"]else None ,
-                pr2_path =Path (paths ["pr2"])if paths ["pr2"]else None ,
-                output_path =out_path ,
-                season_name =season ,
-                pr1_label =pr1_label ,
-                mid_label =mid_label ,
-                pr2_label =pr2_label ,
-                )
-                self .after (0 ,self ._on_master_report_done ,True ,str (out_path ))
-            except Exception :
-                import traceback 
-                self .after (0 ,self ._on_master_report_done ,False ,traceback .format_exc ())
-
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _on_master_report_done (self ,success ,message ):
-        if success :
-            self ._trend_log_write ("\n\u2705 Master report generated!","success")
-            self ._trend_log_write ("\U0001f4c1 Output: "+message ,"success")
-            messagebox .showinfo ("Master Report Complete",
-            "\u2705 Master Season Report generated!\n\nOutput:\n"+message )
-        else :
-            self ._trend_log_write ("\n\u274c Failed:\n"+message [:400 ],"error")
-            messagebox .showerror ("Master Report Failed",
-            "\u274c Failed to generate report:\n\n"+message [:400 ])
-
-    def _on_trend_complete (self ,success ,message ,overall ):
-        self ._trend_processing =False 
-        self ._semester_mgr =SemesterManager ()
-        self ._trend_run_btn .config (state ="normal")
-        self ._trend_progress_bar .stop ()
-        if success :
-            self ._trend_log_write ("\n\u2705 Report generated!","success")
-            self ._trend_log_write ("\U0001f4c1 Output: "+message ,"success")
-            messagebox .showinfo (
-            "Trend Report Complete",
-            "\u2705 Campaign Trend Report generated!\n\n"
-            f"Total unique students: {overall .get ('total_unique_students',0 ):,}\n"
-            f"Output:\n{message }",
-            )
-        else :
-            self ._trend_log_write ("\n\u274c Failed:\n"+message [:400 ],"error")
-            messagebox .showerror ("Trend Report Failed",
-            "\u274c Report generation failed:\n\n"+message [:500 ])
-
-    def _trend_clear_log (self ):
+    def _trend_clear_log(self):
         clear_log(self._trend_log_box)
 
-    def _trend_log_write (self ,message ,tag ="info"):
+    def _trend_log_write(self, message, tag="info"):
         append_log(self._trend_log_box, message, tag)
 
 
