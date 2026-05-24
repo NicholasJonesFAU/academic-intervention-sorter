@@ -18,6 +18,7 @@ from gui_dialogs import show_group_selection_dialog, ensure_season_set, show_new
 from gui_logging import append_log, clear_log, configure_log_tags, PURPLE_LOG_TAGS
 from gui_progress_tab import build_progress_report_sorter_tab
 from gui_report_status_tab import build_report_status_tab
+from gui_report_status_actions import run_report_status, handle_report_status_complete
 from gui_midterm_tab import build_midterm_tab
 from gui_trend_tab import build_trend_tab
 from gui_campaign_tab import build_campaign_tab
@@ -309,85 +310,11 @@ class InterventionSorterApp (tk .Tk ):
         """Build the Faculty Report Status tab UI."""
         build_report_status_tab(self)
 
-    def _on_run_report_status (self ):
-        if self ._report_processing :
-            return 
+    def _on_run_report_status(self):
+        return run_report_status(self)
 
-        status_path =self ._status_picker .path 
-        mapping_path =self ._mapping_picker .path 
-        output_dir =self ._report_output_picker .path 
-
-        errors =[]
-        if not status_path :errors .append ("• Report Status File is required.")
-        if not mapping_path :errors .append ("• Dept/College Mapping File is required.")
-        if not output_dir :errors .append ("• Output Folder is required.")
-        if errors :
-            messagebox .showerror ("Missing Inputs","\n".join (errors ))
-            return 
-
-        self ._report_processing =True 
-        self ._report_run_btn .config (state ="disabled")
-        self ._report_progress_bar .start (12 )
-        self ._report_log ("="*55 ,"info")
-        self ._report_log ("GENERATING FACULTY REPORT STATUS","step")
-        self ._report_log ("="*55 ,"info")
-
-        def _worker ():
-            try :
-                from datetime import datetime 
-                from utils .config import LOG_DATE_FORMAT ,OUTPUT_FILENAME_PATTERN 
-                timestamp =datetime .now ().strftime (LOG_DATE_FORMAT )
-                out_path =Path (output_dir )/f"FacultyCompletion_{timestamp }.xlsx"
-
-                self ._report_log ("Loading department mapping...","step")
-                mapper =DepartmentMapper ()
-                mapper .load (Path (mapping_path ))
-
-                self ._report_log ("Loading report status file...","step")
-                proc =ReportStatusProcessor ()
-                proc .load (Path (status_path ),mapper )
-
-                overall =proc .overall_stats ()
-                self ._report_log (
-                f"Sections loaded: {overall ['total_sections']:,}  |  "
-                f"Submitted: {overall ['submitted']:,}  |  "
-                f"Overall: {overall ['completion_pct']}%","info"
-                )
-
-                self ._report_log ("Building workbook with charts...","step")
-                exporter =ReportStatusExporter ()
-                exporter .export (proc ,out_path ,Path (status_path ).name )
-
-                self .after (0 ,self ._on_report_complete ,True ,str (out_path ),overall )
-            except Exception as exc :
-                import traceback 
-                self .after (0 ,self ._on_report_complete ,False ,traceback .format_exc (),{})
-
-        import threading 
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _on_report_complete (self ,success :bool ,message :str ,overall :dict ):
-        self ._report_processing =False 
-        self ._report_run_btn .config (state ="normal")
-        self ._report_progress_bar .stop ()
-        if success :
-            summary =(
-            "\u2705 Faculty completion report generated!\n\n"
-            "Overall completion: {}%\n"
-            "Submitted: {:,} / {:,} sections\n\n"
-            "Output:\n{}"
-            ).format (
-            overall .get ("completion_pct",0 ),
-            overall .get ("submitted",0 ),
-            overall .get ("total_sections",0 ),
-            message ,
-            )
-            self ._report_log ("\n\u2705 Done! Overall: {}%".format (overall .get ("completion_pct",0 )),"success")
-            self ._report_log ("\U0001f4c1 Output: "+message ,"success")
-            messagebox .showinfo ("Report Complete",summary )
-        else :
-            self ._report_log ("\n\u274c Failed: "+message [:200 ],"error")
-            messagebox .showerror ("Report Failed","\u274c Report failed:\n\n"+message [:400 ])
+    def _on_report_complete(self, success: bool, message: str, overall: dict):
+        return handle_report_status_complete(self, success, message, overall)
 
 
 
