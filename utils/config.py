@@ -155,20 +155,21 @@ PROGRESS_REPORT_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 # ---------------------------------------------------------------------------
 @dataclass
 class StyleConfig:
-    header_fill_color: str = "1F3864"
+    # FAU brand colors for Excel output
+    header_fill_color: str = "003366"    # FAU Navy
     header_font_color: str = "FFFFFF"
     header_font_size: int = 11
     header_font_name: str = "Calibri"
 
-    alt_row_fill_color: str = "DCE6F1"
+    alt_row_fill_color: str = "E8EEF4"   # Light FAU blue-gray
     default_fill_color: str = "FFFFFF"
 
     body_font_name: str = "Calibri"
     body_font_size: int = 10
 
-    summary_accent_color: str = "2F5496"
-    qa_header_color: str = "843C0C"
-    manifest_header_color: str = "375623"
+    summary_accent_color: str = "004488"  # FAU navy lighter
+    qa_header_color: str = "9B2226"       # Dark red
+    manifest_header_color: str = "1A6B3C" # Dark green
 
     min_col_width: int = 10
     max_col_width: int = 120
