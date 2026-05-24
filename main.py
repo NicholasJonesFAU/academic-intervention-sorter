@@ -17,6 +17,7 @@ from gui_widgets import section_label ,RoundedButton ,FilePickerRow
 from gui_dialogs import show_group_selection_dialog, ensure_season_set, show_new_semester_dialog
 from gui_logging import append_log, clear_log, configure_log_tags, PURPLE_LOG_TAGS
 from gui_progress_tab import build_progress_report_sorter_tab
+from gui_report_status_tab import build_report_status_tab
 
 # Ensure the app root is on sys.path
 sys .path .insert (0 ,str (Path (__file__ ).parent ))
@@ -544,76 +545,9 @@ class InterventionSorterApp (tk .Tk ):
         self ._build_settings_tab ()
         self ._build_help_tab ()
 
-    def _build_report_status_tab (self ):
+    def _build_report_status_tab(self):
         """Build the Faculty Report Status tab UI."""
-        # Find tab2 — it's the second child of the notebook
-        notebook =None 
-        for widget in self .winfo_children ():
-            if isinstance (widget ,ttk .Notebook ):
-                notebook =widget 
-                break 
-        if not notebook :
-            return 
-        tab2 =notebook .winfo_children ()[1 ]
-
-        content2 ,_wheel_on2 ,_wheel_off2 =self ._make_scrollable_tab (tab2 )
-
-        section_label (content2 ,"Input Files").pack (fill ="x",pady =(0 ,8 ))
-
-        pf =tk .Frame (content2 ,bg =theme.PANEL_BG )
-        pf .pack (fill ="x")
-
-        self ._status_picker =FilePickerRow (
-        pf ,label ="Report Status File:",
-        filetypes =[("Excel/CSV Files","*.xlsx *.xls *.csv"),("Excel Files","*.xlsx *.xls"),("CSV Files","*.csv"),("All Files","*.*")],
-        tooltip ="Excel file showing which professors have submitted progress reports",
-        )
-        self ._status_picker .pack (fill ="x",pady =4 )
-
-        self ._mapping_picker =FilePickerRow (
-        pf ,label ="Dept/College Mapping:",
-        filetypes =[("Excel Files","*.xlsx *.xls"),("All Files","*.*")],
-        tooltip ="Excel file mapping course prefixes to departments and colleges",
-        )
-        self ._mapping_picker .pack (fill ="x",pady =4 )
-
-        self ._report_output_picker =FilePickerRow (
-        pf ,label ="Output Folder:",
-        filetypes =[],is_directory =True ,
-        tooltip ="Where the faculty completion workbook will be saved",
-        )
-        self ._report_output_picker .pack (fill ="x",pady =4 )
-        self ._report_output_picker .path =str (OUTPUT_DIR )
-
-        ttk .Separator (content2 ,orient ="horizontal").pack (fill ="x",pady =14 )
-
-        btn_frame2 =tk .Frame (content2 ,bg =theme.PANEL_BG )
-        btn_frame2 .pack (fill ="x")
-
-        self ._report_run_btn =RoundedButton (
-        btn_frame2 ,text ='Generate Faculty Report',
-        command =self ._on_run_report_status ,
-        **theme.BTN_PRIMARY ,font =theme.FONT_BOLD ,padx =20 ,pady =9 ,
-        )
-        self ._report_run_btn .pack (side ="left")
-
-        self ._report_progress_bar =ttk .Progressbar (
-        content2 ,maximum =100 ,mode ="indeterminate"
-        )
-        self ._report_progress_bar .pack (fill ="x",pady =(12 ,0 ))
-
-        section_label (content2 ,"Processing Log").pack (fill ="x",pady =(12 ,4 ))
-
-        self ._report_log_box =scrolledtext .ScrolledText (
-        content2 ,height =14 ,font =theme.FONT_MONO ,
-        bg ="#0A1628",fg ="#C8D6E8",
-        relief ="flat",wrap ="word",
-        )
-        self ._report_log_box .pack (fill ="both",expand =True )
-        self ._report_log_box .config (state ="disabled")
-        self ._report_log_box .bind ("<Enter>",_wheel_off2 )
-        self ._report_log_box .bind ("<Leave>",_wheel_on2 )
-        configure_log_tags(self._report_log_box, PURPLE_LOG_TAGS)
+        build_report_status_tab(self)
 
     def _on_run_report_status (self ):
         if self ._report_processing :
