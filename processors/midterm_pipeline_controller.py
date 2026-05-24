@@ -56,6 +56,7 @@ class MidtermPipelineInputs:
     skip_groups: set = None  # Group tab names to skip (students fall to buckets)
     season: str = ""
     checkpoint_type: str = "Midterm"
+    semester_groups: list = None  # [{name, file_path}] — replaces control_file + group_dir when set
 
 
 @dataclass
@@ -141,8 +142,16 @@ class MidtermPipelineController:
             # Step 6 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
-            matcher.load_control_file(inputs.control_file, inputs.group_dir,
-                                              skip_groups=inputs.skip_groups)
+            if inputs.semester_groups:
+                matcher.load_from_semester_groups(
+                    inputs.semester_groups,
+                    skip_groups=inputs.skip_groups,
+                )
+            else:
+                matcher.load_control_file(
+                    inputs.control_file, inputs.group_dir,
+                    skip_groups=inputs.skip_groups,
+                )
             group_data = matcher.match(students_df)
             group_order = [g.safe_tab_name for g in matcher.group_definitions]
 
@@ -250,14 +259,16 @@ class MidtermPipelineController:
 
     def _validate_inputs(self, inputs: MidtermPipelineInputs) -> ValidationResult:
         result = ValidationResult(is_valid=True)
-        for label, path in [
-            ("Midterm File",    inputs.midterm_file),
-            ("Contact Report",  inputs.contact_report),
-            ("Control File",    inputs.control_file),
-        ]:
+        required = [
+            ("Midterm File",   inputs.midterm_file),
+            ("Contact Report", inputs.contact_report),
+        ]
+        if not inputs.semester_groups:
+            required.append(("Control File", inputs.control_file))
+        for label, path in required:
             result.merge(validate_file_exists(path, label))
             result.merge(validate_file_readable(path, label))
-        if not inputs.group_dir.exists():
+        if not inputs.semester_groups and not inputs.group_dir.exists():
             result.add_error(f"Group files directory not found: {inputs.group_dir}")
         result.merge(validate_output_path(inputs.output_dir))
         return result

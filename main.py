@@ -601,22 +601,31 @@ class InterventionSorterApp(tk.Tk):
         checkpoint_name: str,
     ) -> tuple:
         """
-        Show a checklist of groups from the control file.
+        Show a checklist of groups before a run.
         Returns (proceed: bool, skip_groups: set)
-        First run shows all checked; subsequent runs restore last selection.
+
+        Source priority:
+          1. Active semester groups (if configured)
+          2. Control file (fallback)
         """
-        from processors.group_matcher import GroupMatcher
         from processors.semester_manager import SemesterManager
 
-        matcher = GroupMatcher(None.__class__.__mro__[0])  # dummy
-        try:
+        sm = SemesterManager()
+        semester_groups = sm.get_groups()
+
+        if semester_groups:
+            # Use semester-configured groups — list of {name, file_path}
+            groups = [(g["name"], Path(g["file_path"]).name if g["file_path"] else "")
+                      for g in semester_groups]
+        else:
+            # Fall back to parsing the control file
+            from processors.group_matcher import GroupMatcher
             from utils.logging_utils import QALog
-            matcher = GroupMatcher(QALog())
-            from pathlib import Path
-            groups = matcher.read_group_names(Path(control_path))
-        except Exception as exc:
-            # Can't read groups — just proceed with all
-            return True, set()
+            try:
+                matcher = GroupMatcher(QALog())
+                groups = matcher.read_group_names(Path(control_path))
+            except Exception:
+                return True, set()
 
         if not groups:
             return True, set()
@@ -954,18 +963,31 @@ class InterventionSorterApp(tk.Tk):
         self._progress_bar.stop()
 
     def _collect_inputs(self) -> PipelineInputs | None:
-        """Gather file paths from pickers and validate they're not empty."""
+        """
+        Gather file paths from pickers and validate they're not empty.
+
+        When the active semester has groups configured, the control file and
+        group folder are optional — semester groups take precedence.
+        """
+        semester_groups = SemesterManager().get_groups()
+        using_semester_groups = bool(semester_groups)
+
         errors = []
-        paths = {
+        always_required = {
             "Progress Report": self._progress_picker.path,
-            "Contact Report": self._contact_picker.path,
-            "Group Control File": self._control_picker.path,
-            "Group Files Folder": self._group_dir_picker.path,
-            "Output Folder": self._output_picker.path,
+            "Contact Report":  self._contact_picker.path,
+            "Output Folder":   self._output_picker.path,
         }
-        for label, val in paths.items():
+        for label, val in always_required.items():
             if not val:
                 errors.append(f"• {label} is required.")
+
+        # Control file + group dir only required if no semester groups set
+        if not using_semester_groups:
+            if not self._control_picker.path:
+                errors.append("• Group Control File is required (no semester groups configured).")
+            if not self._group_dir_picker.path:
+                errors.append("• Group Files Folder is required (no semester groups configured).")
 
         if errors:
             messagebox.showerror(
@@ -976,15 +998,21 @@ class InterventionSorterApp(tk.Tk):
 
         season = self._campaign_season_var.get().strip() if hasattr(self, "_campaign_season_var") else ""
         checkpoint = self._checkpoint_type_var.get() if hasattr(self, "_checkpoint_type_var") else "Progress Report"
+
+        # Provide dummy Paths for control_file/group_dir when not used
+        control_file = Path(self._control_picker.path) if self._control_picker.path else Path(".")
+        group_dir    = Path(self._group_dir_picker.path) if self._group_dir_picker.path else Path(".")
+
         return PipelineInputs(
-            progress_report=Path(paths["Progress Report"]),
-            contact_report=Path(paths["Contact Report"]),
-            control_file=Path(paths["Group Control File"]),
-            group_dir=Path(paths["Group Files Folder"]),
-            output_dir=Path(paths["Output Folder"]),
+            progress_report=Path(always_required["Progress Report"]),
+            contact_report=Path(always_required["Contact Report"]),
+            control_file=control_file,
+            group_dir=group_dir,
+            output_dir=Path(always_required["Output Folder"]),
             exclude_previous=self._exclude_var.get(),
             season=season,
             checkpoint_type=checkpoint,
+            semester_groups=semester_groups if using_semester_groups else None,
         )
 
     def _start_processing(self, inputs: PipelineInputs, validate_only: bool):
@@ -1354,17 +1382,24 @@ class InterventionSorterApp(tk.Tk):
             return
         if not self._ensure_season_set():
             return
+
+        semester_groups = SemesterManager().get_groups()
+        using_semester_groups = bool(semester_groups)
+
         errors = []
-        paths = {
+        always_required = {
             "Midterm Grade File": self._midterm_file_picker.path,
             "Contact Report":     self._midterm_contact_picker.path,
-            "Group Control File": self._midterm_control_picker.path,
-            "Group Files Folder": self._midterm_group_dir_picker.path,
             "Output Folder":      self._midterm_output_picker.path,
         }
-        for label, val in paths.items():
+        for label, val in always_required.items():
             if not val:
                 errors.append(f"  {label} is required.")
+        if not using_semester_groups:
+            if not self._midterm_control_picker.path:
+                errors.append("  Group Control File is required (no semester groups configured).")
+            if not self._midterm_group_dir_picker.path:
+                errors.append("  Group Files Folder is required (no semester groups configured).")
         if errors:
             messagebox.showerror(
                 "Missing Inputs",
@@ -1373,27 +1408,30 @@ class InterventionSorterApp(tk.Tk):
             return
 
         season = self._campaign_season_var.get().strip() if hasattr(self, "_campaign_season_var") else ""
+        control_file = Path(self._midterm_control_picker.path) if self._midterm_control_picker.path else Path(".")
+        group_dir    = Path(self._midterm_group_dir_picker.path) if self._midterm_group_dir_picker.path else Path(".")
+
         inputs = MidtermPipelineInputs(
-            midterm_file=Path(paths["Midterm Grade File"]),
-            contact_report=Path(paths["Contact Report"]),
-            control_file=Path(paths["Group Control File"]),
-            group_dir=Path(paths["Group Files Folder"]),
-            output_dir=Path(paths["Output Folder"]),
+            midterm_file=Path(always_required["Midterm Grade File"]),
+            contact_report=Path(always_required["Contact Report"]),
+            control_file=control_file,
+            group_dir=group_dir,
+            output_dir=Path(always_required["Output Folder"]),
             exclude_previous=self._midterm_exclude_var.get(),
             season=season,
             checkpoint_type="Midterm",
+            semester_groups=semester_groups if using_semester_groups else None,
         )
 
-        # Group selection dialog
-        if paths["Group Control File"] and paths["Group Files Folder"]:
-            proceed, skip_groups = self._show_group_selection_dialog(
-                paths["Group Control File"],
-                paths["Group Files Folder"],
-                "Midterm",
-            )
-            if not proceed:
-                return
-            inputs.skip_groups = skip_groups
+        # Group selection dialog — always show so user can pick which groups to produce
+        proceed, skip_groups = self._show_group_selection_dialog(
+            self._midterm_control_picker.path,
+            self._midterm_group_dir_picker.path,
+            "Midterm",
+        )
+        if not proceed:
+            return
+        inputs.skip_groups = skip_groups
 
         self._midterm_processing = True
         self._midterm_run_btn.config(state="disabled")
@@ -1879,6 +1917,46 @@ class InterventionSorterApp(tk.Tk):
 
         ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=12)
 
+        # ── Group configuration ───────────────────────────────────
+        grp_header = tk.Frame(outer, bg=PANEL_BG)
+        grp_header.pack(fill="x", pady=(0, 6))
+        section_label(grp_header, "Groups").pack(side="left")
+        tk.Label(
+            grp_header,
+            text="Priority order — first match wins each run",
+            bg=PANEL_BG, fg=TEXT_MUTED, font=FONT_SUB,
+        ).pack(side="left", padx=(12, 0))
+
+        # Scrollable group list container
+        self._groups_list_frame = tk.Frame(outer, bg=PANEL_BG)
+        self._groups_list_frame.pack(fill="x")
+
+        # Empty-state label shown when no groups are configured
+        self._groups_empty_lbl = tk.Label(
+            self._groups_list_frame,
+            text="No groups configured — add groups below or use a control file.",
+            bg=PANEL_BG, fg=TEXT_MUTED, font=FONT_SUB,
+        )
+        self._groups_empty_lbl.pack(anchor="w", pady=(4, 8))
+
+        # Buttons below the list
+        grp_btn_frame = tk.Frame(outer, bg=PANEL_BG)
+        grp_btn_frame.pack(fill="x", pady=(6, 0))
+
+        RoundedButton(
+            grp_btn_frame, text="+ Add Group",
+            **BTN_PRIMARY, font=FONT_BOLD, padx=14, pady=7,
+            command=self._on_add_group,
+        ).pack(side="left", padx=(0, 8))
+
+        RoundedButton(
+            grp_btn_frame, text="Copy from Previous Semester",
+            **BTN_MUTED_STYLE, font=FONT_MAIN, padx=12, pady=7,
+            command=self._on_copy_previous_groups,
+        ).pack(side="left")
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=12)
+
         # ── Semester actions ──────────────────────────────────────
         section_label(outer, "Semester Actions").pack(fill="x", pady=(0, 8))
 
@@ -1944,6 +2022,229 @@ class InterventionSorterApp(tk.Tk):
     # ------------------------------------------------------------------
     # Semester tab methods
     # ------------------------------------------------------------------
+
+    # ── Group list UI helpers ──────────────────────────────────────
+
+    def _rebuild_groups_list(self) -> None:
+        """Redraw the group list rows from the active semester's group data."""
+        # Destroy existing rows (skip the empty label widget)
+        for widget in self._groups_list_frame.winfo_children():
+            if widget is not self._groups_empty_lbl:
+                widget.destroy()
+
+        groups = SemesterManager().get_groups()
+
+        if not groups:
+            self._groups_empty_lbl.pack(anchor="w", pady=(4, 8))
+            return
+
+        self._groups_empty_lbl.pack_forget()
+
+        # Column header
+        hdr = tk.Frame(self._groups_list_frame, bg=PANEL_BG_DARK)
+        hdr.pack(fill="x", pady=(0, 2))
+        for text, w in [("#", 3), ("Group Name", 18), ("File Path", 0)]:
+            tk.Label(hdr, text=text, bg=PANEL_BG_DARK, fg=TEXT_MUTED,
+                     font=FONT_SUB, width=w, anchor="w",
+                     padx=6).pack(side="left")
+        tk.Label(hdr, text="Actions", bg=PANEL_BG_DARK, fg=TEXT_MUTED,
+                 font=FONT_SUB, width=14, anchor="e", padx=6).pack(side="right")
+
+        for i, group in enumerate(groups):
+            row = tk.Frame(self._groups_list_frame,
+                           bg=WHITE if i % 2 == 0 else PANEL_BG,
+                           pady=4, padx=6)
+            row.pack(fill="x")
+
+            # Priority number
+            tk.Label(row, text=str(i + 1), bg=row.cget("bg"),
+                     fg=TEXT_MUTED, font=FONT_SUB, width=3).pack(side="left")
+
+            # Group name (editable label)
+            tk.Label(row, text=group["name"], bg=row.cget("bg"),
+                     fg=TEXT_FG, font=FONT_BOLD, width=18,
+                     anchor="w").pack(side="left")
+
+            # File path — truncated, clickable to re-browse
+            path_str = group["file_path"]
+            display = (Path(path_str).name if path_str
+                       else "⚠  No file selected")
+            path_color = TEXT_FG if path_str else RED_ACCENT
+            path_lbl = tk.Label(row, text=display, bg=row.cget("bg"),
+                                fg=path_color, font=FONT_MAIN,
+                                anchor="w", cursor="hand2")
+            path_lbl.pack(side="left", fill="x", expand=True)
+            path_lbl.bind("<Button-1>",
+                          lambda e, idx=i: self._on_browse_group_file(idx))
+
+            # Action buttons
+            action_frame = tk.Frame(row, bg=row.cget("bg"))
+            action_frame.pack(side="right")
+
+            if i > 0:
+                RoundedButton(action_frame, text="▲",
+                              **BTN_MUTED_STYLE, font=FONT_SUB, padx=6, pady=2,
+                              command=lambda idx=i: self._on_move_group(idx, -1),
+                              ).pack(side="left", padx=(0, 2))
+            else:
+                tk.Frame(action_frame, bg=row.cget("bg"), width=32).pack(side="left", padx=(0,2))
+
+            if i < len(groups) - 1:
+                RoundedButton(action_frame, text="▼",
+                              **BTN_MUTED_STYLE, font=FONT_SUB, padx=6, pady=2,
+                              command=lambda idx=i: self._on_move_group(idx, 1),
+                              ).pack(side="left", padx=(0, 6))
+            else:
+                tk.Frame(action_frame, bg=row.cget("bg"), width=32).pack(side="left", padx=(0,6))
+
+            RoundedButton(action_frame, text="✕",
+                          **BTN_DANGER, font=FONT_SUB, padx=6, pady=2,
+                          command=lambda idx=i: self._on_delete_group(idx),
+                          ).pack(side="left")
+
+    def _save_and_refresh_groups(self, groups: list) -> None:
+        """Persist group list to the active semester and rebuild the UI."""
+        sm = SemesterManager()
+        if sm.has_active_semester():
+            sm.set_groups(groups)
+        self._rebuild_groups_list()
+
+    # ── Group actions ──────────────────────────────────────────────
+
+    def _on_add_group(self) -> None:
+        """Open the Add Group dialog."""
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            messagebox.showwarning("No Active Semester",
+                                   "Start a semester before adding groups.")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Add Group")
+        dialog.geometry("500x200")
+        dialog.configure(bg=PANEL_BG)
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        tk.Label(dialog, text="Group Name:", bg=PANEL_BG, fg=TEXT_FG,
+                 font=FONT_BOLD).pack(anchor="w", padx=24, pady=(20, 4))
+
+        name_var = tk.StringVar()
+        name_entry = tk.Entry(dialog, textvariable=name_var, font=FONT_MAIN,
+                              width=38, relief="flat", bg=WHITE,
+                              highlightthickness=1, highlightbackground=BORDER,
+                              highlightcolor=NAVY_DARK, insertbackground=NAVY_DARK)
+        name_entry.pack(anchor="w", padx=24, ipady=4)
+        name_entry.focus()
+
+        file_var = tk.StringVar()
+        file_frame = tk.Frame(dialog, bg=PANEL_BG)
+        file_frame.pack(fill="x", padx=24, pady=(10, 0))
+        tk.Label(file_frame, text="Group File (.xlsx):", bg=PANEL_BG,
+                 fg=TEXT_FG, font=FONT_BOLD).pack(anchor="w")
+        pick_row = tk.Frame(file_frame, bg=PANEL_BG)
+        pick_row.pack(fill="x", pady=(4, 0))
+        file_entry = tk.Entry(pick_row, textvariable=file_var, font=FONT_MAIN,
+                              width=36, relief="flat", bg=WHITE,
+                              highlightthickness=1, highlightbackground=BORDER)
+        file_entry.pack(side="left", ipady=4, padx=(0, 8))
+        RoundedButton(pick_row, text="Browse",
+                      **BTN_MUTED_STYLE, font=FONT_BOLD, padx=10, pady=4,
+                      command=lambda: file_var.set(
+                          filedialog.askopenfilename(
+                              filetypes=[("Excel Files", "*.xlsx *.xls"),
+                                         ("All Files", "*.*")]) or file_var.get()
+                      )).pack(side="left")
+
+        err_lbl = tk.Label(dialog, text="", bg=PANEL_BG,
+                           fg=RED_ACCENT, font=FONT_SUB)
+        err_lbl.pack(anchor="w", padx=24)
+
+        bf = tk.Frame(dialog, bg=PANEL_BG)
+        bf.pack(fill="x", padx=24, pady=(8, 16))
+
+        def on_add():
+            name = name_var.get().strip()
+            if not name:
+                err_lbl.config(text="Please enter a group name.")
+                return
+            groups = SemesterManager().get_groups()
+            if any(g["name"].lower() == name.lower() for g in groups):
+                err_lbl.config(text=f"A group named '{name}' already exists.")
+                return
+            groups.append({"name": name, "file_path": file_var.get().strip()})
+            self._save_and_refresh_groups(groups)
+            dialog.destroy()
+
+        RoundedButton(bf, text="Add Group",
+                      **BTN_PRIMARY, font=FONT_BOLD, padx=16, pady=8,
+                      command=on_add).pack(side="left", padx=(0, 8))
+        RoundedButton(bf, text="Cancel",
+                      **BTN_MUTED_STYLE, font=FONT_MAIN, padx=12, pady=8,
+                      command=dialog.destroy).pack(side="left")
+
+        dialog.wait_window()
+
+    def _on_browse_group_file(self, index: int) -> None:
+        """Open a file picker to update the file path for an existing group."""
+        path = filedialog.askopenfilename(
+            filetypes=[("Excel Files", "*.xlsx *.xls"), ("All Files", "*.*")]
+        )
+        if not path:
+            return
+        groups = SemesterManager().get_groups()
+        if 0 <= index < len(groups):
+            groups[index]["file_path"] = path
+            self._save_and_refresh_groups(groups)
+
+    def _on_move_group(self, index: int, direction: int) -> None:
+        """Move a group up (-1) or down (+1) in priority order."""
+        groups = SemesterManager().get_groups()
+        new_idx = index + direction
+        if 0 <= new_idx < len(groups):
+            groups[index], groups[new_idx] = groups[new_idx], groups[index]
+            self._save_and_refresh_groups(groups)
+
+    def _on_delete_group(self, index: int) -> None:
+        """Remove a group from the semester configuration."""
+        groups = SemesterManager().get_groups()
+        if 0 <= index < len(groups):
+            name = groups[index]["name"]
+            if not messagebox.askyesno("Remove Group",
+                                       f"Remove '{name}' from this semester?"):
+                return
+            groups.pop(index)
+            self._save_and_refresh_groups(groups)
+
+    def _on_copy_previous_groups(self) -> None:
+        """Copy group names from the previous semester, clearing file paths."""
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            messagebox.showwarning("No Active Semester",
+                                   "Start a semester before copying groups.")
+            return
+        prev = sm.get_previous_semester_groups()
+        if not prev:
+            messagebox.showinfo("No Previous Groups",
+                                "No previous semester has groups configured.")
+            return
+        existing = sm.get_groups()
+        if existing:
+            if not messagebox.askyesno(
+                "Replace Groups",
+                f"This will replace your {len(existing)} current group(s) with "
+                f"{len(prev)} group(s) from the previous semester.\n\n"
+                "You will need to re-select the files for each group.\n\n"
+                "Continue?"
+            ):
+                return
+        self._save_and_refresh_groups(prev)
+        messagebox.showinfo(
+            "Groups Copied",
+            f"Copied {len(prev)} group name(s) from the previous semester.\n\n"
+            "Click each file path to select the new files for this semester."
+        )
 
     def _check_semester_on_startup(self):
         """Show new semester prompt if no active semester exists."""
@@ -2098,8 +2399,9 @@ class InterventionSorterApp(tk.Tk):
                 Path(s.master_report).name if s.master_report else "—",
             ))
 
-        self._history_tree.tag_configure("active", background="#E3F2FD")
-        self._history_tree.tag_configure("done",   background="#F4F6FB")
+        # Rebuild the group list display
+        if hasattr(self, "_groups_list_frame"):
+            self._rebuild_groups_list()
 
         # Pre-fill file pickers if semester has saved paths
         if sem:

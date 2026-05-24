@@ -54,6 +54,21 @@ class CheckpointRun:
             self.selected_groups = []
 
 
+
+@dataclass
+class SemesterGroup:
+    """One group entry configured for a semester."""
+    name:      str
+    file_path: str = ""
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "file_path": self.file_path}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SemesterGroup":
+        return cls(name=d.get("name", ""), file_path=d.get("file_path", ""))
+
+
 @dataclass
 class Semester:
     """A full semester campaign record."""
@@ -69,6 +84,10 @@ class Semester:
     control_file:   str   = ""
     group_folder:   str   = ""
 
+    # Semester group definitions — priority-ordered [{name, file_path}]
+    # When present, replaces control file + group folder for all runs
+    groups:         list  = field(default_factory=list)
+
     # Checkpoint records — keyed by checkpoint name
     checkpoints:    Dict[str, Any] = field(default_factory=dict)
 
@@ -80,6 +99,9 @@ class Semester:
             }
         if not self.created:
             self.created = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Backward compat: old JSON records won't have a groups key
+        if self.groups is None:
+            self.groups = []
 
     def get_checkpoint(self, name: str) -> CheckpointRun:
         data = self.checkpoints.get(name, {})
@@ -159,6 +181,47 @@ class SemesterManager:
         if group_folder and not sem.group_folder:
             sem.group_folder = group_folder
         self._save()
+
+
+    # ------------------------------------------------------------------
+    # Group configuration
+    # ------------------------------------------------------------------
+
+    def set_groups(self, groups: list) -> None:
+        """
+        Save the semester group list.
+
+        Args:
+            groups: List of dicts with keys 'name' and 'file_path', in
+                    priority order.  An empty list is valid (clears groups).
+        """
+        sem = self.active_semester()
+        if not sem:
+            return
+        sem.groups = [{"name": g["name"], "file_path": g["file_path"]}
+                      for g in groups]
+        self._save()
+        logger.info(
+            "SemesterManager: Saved %d groups for semester '%s'",
+            len(sem.groups), sem.name,
+        )
+
+    def get_groups(self) -> list:
+        """Return the group list for the active semester (may be empty)."""
+        sem = self.active_semester()
+        return list(sem.groups) if sem else []
+
+    def get_previous_semester_groups(self) -> list:
+        """
+        Return group names (file_path cleared) from the most recently
+        completed/abandoned semester so the user can re-point the files.
+        Returns an empty list if no prior semester has groups configured.
+        """
+        for sem in reversed(self._semesters):
+            if sem.status != SEMESTER_STATUS_ACTIVE and sem.groups:
+                return [{"name": g["name"], "file_path": ""}
+                        for g in sem.groups]
+        return []
 
     def save_group_selection(
         self,

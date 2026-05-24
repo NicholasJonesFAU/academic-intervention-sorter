@@ -170,6 +170,102 @@ class GroupMatcher:
             logger.warning("GroupMatcher: Could not read group names: %s", exc)
             return []
 
+
+    def load_from_semester_groups(
+        self,
+        groups: list,
+        skip_groups: set = None,
+    ) -> None:
+        """
+        Load groups from semester-configured definitions (full file paths).
+
+        This is the alternative to load_control_file() — used when the
+        active semester has groups configured rather than a control TXT file.
+
+        Args:
+            groups:      List of {'name': str, 'file_path': str} dicts in
+                         priority order.
+            skip_groups: Set of group names to skip (students fall to buckets).
+        """
+        self._skip_groups = set(skip_groups) if skip_groups else set()
+        logger.info(
+            "GroupMatcher: Loading %d groups from semester configuration.", len(groups)
+        )
+        if self._skip_groups:
+            logger.info("GroupMatcher: Skipping groups: %s", self._skip_groups)
+
+        # Build (tab_name, full_path) pairs, honouring skip list
+        raw = [
+            (g["name"], g["file_path"])
+            for g in groups
+            if g["name"] not in self._skip_groups
+        ]
+
+        self._groups = self._load_group_files_by_path(raw)
+        self._audit_cross_group_duplicates()
+
+        logger.info(
+            "GroupMatcher: %d groups loaded from semester configuration.",
+            len(self._groups),
+        )
+
+    def _load_group_files_by_path(
+        self,
+        raw_groups: list,  # [(tab_name, full_file_path), ...]
+    ) -> "List[GroupDefinition]":
+        """
+        Load group files given full paths (not filename + directory).
+        Mirrors _load_group_files but accepts absolute/relative Path strings.
+        """
+        groups = []
+        used_tab_names: List[str] = []
+
+        for tab_name, file_path_str in raw_groups:
+            file_path = Path(file_path_str) if file_path_str else None
+            safe_name = safe_excel_tab_name(tab_name, used_tab_names)
+            used_tab_names.append(safe_name)
+
+            group_def = GroupDefinition(
+                tab_name=tab_name,
+                filename=file_path.name if file_path else "",
+                safe_tab_name=safe_name,
+            )
+
+            if not file_path or not file_path.exists():
+                logger.warning(
+                    "GroupMatcher: Group file not found: '%s'. Group will be empty.",
+                    file_path,
+                )
+                self.qa_log.log(
+                    "FILE_LOAD_ERROR",
+                    detail=f"Group file not found: {file_path}",
+                    source_file=str(file_path) if file_path else tab_name,
+                )
+                groups.append(group_def)
+                continue
+
+            ids = self._load_id_file(file_path)
+            group_def.student_ids = ids
+
+            if not ids:
+                logger.warning(
+                    "GroupMatcher: Group file '%s' yielded no valid IDs.",
+                    file_path.name,
+                )
+                self.qa_log.log(
+                    "EMPTY_GROUP_FILE",
+                    detail=f"No valid Student IDs in group file: {file_path.name}",
+                    source_file=file_path.name,
+                )
+
+            groups.append(group_def)
+            logger.info(
+                "GroupMatcher: Loaded group '%s' — %d IDs from '%s'",
+                tab_name, len(ids), file_path.name,
+            )
+
+        return groups
+
     @property
     def group_definitions(self) -> List[GroupDefinition]:
         return list(self._groups)
