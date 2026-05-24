@@ -3,6 +3,8 @@ contact_processor.py — Loads the contact report and merges contact info onto s
 
 Phone number uses a waterfall fallback:
     cellular_phone → local_phone → permanent_phone → blank
+
+Contact coverage counts a student as covered when EITHER phone or email is present.
 """
 
 import logging
@@ -31,16 +33,28 @@ class ContactProcessor:
 
         try:
             df_raw = pd.read_excel(
-                file_path, dtype=str, keep_default_na=False, engine="openpyxl"
+                file_path,
+                dtype=str,
+                keep_default_na=False,
+                engine="openpyxl",
             )
         except Exception as exc:
-            self.qa_log.log("FILE_LOAD_ERROR",
+            self.qa_log.log(
+                "FILE_LOAD_ERROR",
                 detail=f"Could not load contact report: {exc}",
-                source_file=file_path.name)
-            raise RuntimeError(f"Cannot open contact report '{file_path.name}': {exc}") from exc
+                source_file=file_path.name,
+            )
+            raise RuntimeError(
+                f"Cannot open contact report '{file_path.name}': {exc}"
+            ) from exc
+
+        # Strip headers early so settings match even if the file has accidental spaces.
+        df_raw.columns = [str(c).strip() for c in df_raw.columns]
 
         validation = validate_required_columns(
-            df_raw, get_settings().contact_required_columns, f"Contact Report ({file_path.name})"
+            df_raw,
+            get_settings().contact_required_columns,
+            f"Contact Report ({file_path.name})",
         )
         if not validation.is_valid:
             raise ValueError("\n".join(validation.errors))
@@ -48,59 +62,63 @@ class ContactProcessor:
         col = get_settings().contact_report_map
         df = df_raw.copy()
 
-        # Normalize Student ID
+        # Normalize Student ID.
         df["Student ID"] = normalize_student_id_series(df[col["student_id"]])
 
-        # Phone waterfall — cellular → local → permanent → blank
+        # Phone waterfall — cellular → local → permanent → blank.
         df["Phone Number"] = self._resolve_phone(df)
 
-        # Log which phone columns were found
-        found = [c for c in get_settings().phone_fallback_columns if c in df_raw.columns]
-        missing = [c for c in get_settings().phone_fallback_columns if c not in df_raw.columns]
+        found = [
+            c for c in get_settings().phone_fallback_columns
+            if c in df_raw.columns
+        ]
+        missing = [
+            c for c in get_settings().phone_fallback_columns
+            if c not in df_raw.columns
+        ]
+
         if found:
             logger.info("ContactProcessor: Phone columns found: %s", found)
         if missing:
-            logger.warning("ContactProcessor: Phone columns not found (will be skipped): %s", missing)
+            logger.warning(
+                "ContactProcessor: Phone columns not found and will be skipped: %s",
+                missing,
+            )
 
-        # Email
+        # Email.
         email_col = col["email"]
-        df["Email"] = (
-            normalize_string_series(df[email_col])
-            if email_col in df.columns else ""
-        )
-        if email_col not in df.columns:
-            logger.warning("ContactProcessor: Email column '%s' not found — will be blank.", email_col)
+        if email_col in df.columns:
+            df["Email"] = normalize_string_series(df[email_col])
+        else:
+            df["Email"] = ""
+            logger.warning(
+                "ContactProcessor: Email column '%s' not found — email will be blank.",
+                email_col,
+            )
 
         df = df[["Student ID", "Phone Number", "Email"]].drop_duplicates(
-            subset=["Student ID"], keep="first"
+            subset=["Student ID"],
+            keep="first",
         )
 
         self._contact_df = df
-        logger.info("ContactProcessor: %d unique contacts loaded.", len(self._contact_df))
+        logger.info(
+            "ContactProcessor: %d unique contacts loaded.",
+            len(self._contact_df),
+        )
 
     def _resolve_phone(self, df: pd.DataFrame) -> pd.Series:
         """
         Return a Series with the best available phone number per row.
-        Waterfall: cellular_phone → local_phone → permanent_phone → blank
+        Waterfall: cellular_phone → local_phone → permanent_phone → blank.
         """
         result = pd.Series("", index=df.index)
 
-        # Work backwards so higher-priority columns overwrite lower ones
-        for col_name in reversed(get_settings().phone_fallback_columns):
-            if col_name not in df.columns:
-                continue
-            normalized = normalize_string_series(df[col_name])
-            # Only overwrite blank results with a non-blank value
-            has_value = normalized != ""
-            result = result.where(~has_value | (result != ""), normalized)
-
-        # Simpler approach: iterate fallback columns in priority order
-        result = pd.Series("", index=df.index)
         for col_name in get_settings().phone_fallback_columns:
             if col_name not in df.columns:
                 continue
+
             normalized = normalize_string_series(df[col_name])
-            # Fill in only where we don't already have a number
             still_blank = result == ""
             result = result.where(~still_blank, normalized.where(still_blank, result))
 
@@ -111,27 +129,48 @@ class ContactProcessor:
             logger.warning("ContactProcessor: No contact data loaded. Skipping merge.")
             students_df["Phone Number"] = ""
             students_df["Email"] = ""
+            self._contact_matches = 0
+            self._contact_misses = len(students_df)
             return students_df
 
         result = students_df.merge(
-            self._contact_df, on="Student ID", how="left", suffixes=("", "_contact")
+            self._contact_df,
+            on="Student ID",
+            how="left",
+            suffixes=("", "_contact"),
         )
+
         result["Phone Number"] = result["Phone Number"].fillna("")
         result["Email"] = result["Email"].fillna("")
 
-        self._contact_matches = int((result["Email"] != "").sum())
-        self._contact_misses = len(result) - self._contact_matches
+        # IMPORTANT:
+        # A contact match means the student has either a usable phone number OR email.
+        # The previous logic counted email only, which made phone-only sample data show 0%.
+        has_contact_mask = (result["Phone Number"] != "") | (result["Email"] != "")
 
-        no_contact_mask = (result["Phone Number"] == "") & (result["Email"] == "")
-        for _, row in result[no_contact_mask].iterrows():
-            self.qa_log.log("MISSING_CONTACT", student_id=row.get("Student ID", ""),
+        self._contact_matches = int(has_contact_mask.sum())
+        self._contact_misses = int((~has_contact_mask).sum())
+
+        for _, row in result[~has_contact_mask].iterrows():
+            self.qa_log.log(
+                "MISSING_CONTACT",
+                student_id=row.get("Student ID", ""),
                 detail="No phone or email found across all contact columns",
-                source_file="contact_report")
+                source_file="contact_report",
+            )
 
         if self._contact_misses > 0:
-            logger.warning("ContactProcessor: %d students have no contact info.", self._contact_misses)
-        logger.info("ContactProcessor: Merge complete. Matches: %d | Misses: %d",
-            self._contact_matches, self._contact_misses)
+            logger.warning(
+                "ContactProcessor: %d students have no contact info.",
+                self._contact_misses,
+            )
+
+        logger.info(
+            "ContactProcessor: Merge complete. Contacts found: %d | Missing: %d",
+            self._contact_matches,
+            self._contact_misses,
+        )
+
         return result
 
     @property
