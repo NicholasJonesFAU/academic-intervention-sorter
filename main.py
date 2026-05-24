@@ -37,6 +37,48 @@ logger = setup_logger("intervention_sorter")
 
 
 # ---------------------------------------------------------------------------
+# Font loading — Inter from assets/ folder
+# ---------------------------------------------------------------------------
+def _load_inter_fonts() -> str:
+    """
+    Register Inter font files with tkinter and return the family name.
+    Falls back to Segoe UI if font files are not found.
+    """
+    import tkinter.font as tkfont
+    from pathlib import Path
+
+    assets = Path(__file__).parent / "assets"
+    fonts = {
+        "regular":  assets / "Inter-Regular.ttf",
+        "medium":   assets / "Inter-Medium.ttf",
+        "semibold": assets / "Inter-SemiBold.ttf",
+    }
+
+    if not all(p.exists() for p in fonts.values()):
+        return "Segoe UI"
+
+    try:
+        # pyglet is the cleanest way to register fonts with tkinter on Windows
+        # but we can use a pure-tkinter approach via the undocumented font.Font loader
+        import ctypes
+        FR_PRIVATE = 0x10
+        for path in fonts.values():
+            ctypes.windll.gdi32.AddFontResourceExW(str(path), FR_PRIVATE, 0)
+        return "Inter"
+    except Exception:
+        # Non-Windows fallback: try tkinter's built-in font loading
+        try:
+            root_check = tk.Tk()
+            root_check.withdraw()
+            tkfont.Font(root=root_check, family="Inter")
+            root_check.destroy()
+            return "Inter"
+        except Exception:
+            return "Segoe UI"
+
+_FONT_FAMILY = None  # Set after tk.Tk() is created
+
+# ---------------------------------------------------------------------------
 # FAU Brand Color Palette
 # Primary: Navy #003366  Gold: #CCA20F  Light: #E8EEF4  Dark text: #1A2332
 # ---------------------------------------------------------------------------
@@ -64,6 +106,7 @@ SUCCESS_COLOR = "#276749"
 WARNING_COLOR = "#C05621"
 
 # Typography — Segoe UI is clean and Windows-native
+# Font tuples built after font loading — see InterventionSorterApp.__init__
 FONT_MAIN   = ("Segoe UI", 10)
 FONT_BOLD   = ("Segoe UI", 10, "bold")
 FONT_HEADER = ("Segoe UI", 15, "bold")
@@ -71,6 +114,16 @@ FONT_TITLE  = ("Segoe UI", 11, "bold")
 FONT_SUB    = ("Segoe UI", 9)
 FONT_MONO   = ("Consolas", 9)
 FONT_SMALL  = ("Segoe UI", 8)
+
+def _apply_font(family: str) -> None:
+    """Update all FONT_* globals to use the loaded font family."""
+    global FONT_MAIN, FONT_BOLD, FONT_HEADER, FONT_TITLE, FONT_SUB, FONT_SMALL
+    FONT_MAIN   = (family, 10)
+    FONT_BOLD   = (family, 10, "bold")
+    FONT_HEADER = (family, 15, "bold")
+    FONT_TITLE  = (family, 11, "bold")
+    FONT_SUB    = (family, 9)
+    FONT_SMALL  = (family, 8)
 
 
 def section_label(parent, text: str) -> tk.Label:
@@ -161,6 +214,11 @@ class InterventionSorterApp(tk.Tk):
         self.resizable(True, True)
 
         self._processing = False
+        # Load Inter font
+        global _FONT_FAMILY
+        _FONT_FAMILY = _load_inter_fonts()
+        _apply_font(_FONT_FAMILY)
+
         self._processing = False
         self._midterm_processing = False
         self._trend_processing = False
