@@ -37,6 +37,41 @@ logger = setup_logger("intervention_sorter")
 
 
 # ---------------------------------------------------------------------------
+# Color system  (see gui/theme.py for the canonical reference)
+# ---------------------------------------------------------------------------
+NAVY         = "#003366"    # FAU brand navy — outer frames, active tab fg, brand labels
+NAVY_LIGHT   = "#004488"    # Lighter brand navy — inactive tab bg
+NAVY_DARK    = "#1a1f2e"    # Dark charcoal — header inner, primary buttons
+NAVY_HOVER   = "#252c3d"    # Hover state for dark-charcoal buttons
+
+RED_ACCENT   = "#c53030"    # Red accent stripe + danger buttons
+RED_HOVER    = "#a12424"    # Hover for red buttons
+
+WHITE        = "#ffffff"
+PANEL_BG     = "#F0F4F8"    # Panel / content area background
+PANEL_BG_DARK = "#E2E8F0"   # Slightly darker panel for contrast
+BORDER       = "#CBD5E0"    # Entry highlight / separator
+
+BTN_MUTED        = "#4A5568"    # Slate gray — Cancel, Skip, utility buttons
+BTN_MUTED_HOVER  = "#3d4a5c"
+BTN_SUCCESS      = "#276749"    # Green — affirmative / complete actions
+BTN_SUCCESS_HOVER = "#1e5038"
+
+TEXT_FG       = "#1A2332"
+TEXT_MUTED    = "#4A5568"
+SUCCESS_COLOR = "#276749"
+WARNING_COLOR = "#C05621"
+BG_COLOR      = NAVY
+
+# Button style presets — unpack with ** into RoundedButton
+# Example: RoundedButton(parent, text="Run", command=fn, **BTN_PRIMARY, font=FONT_BOLD)
+BTN_PRIMARY         = dict(bg=NAVY_DARK,     fg=WHITE,    hover_bg=NAVY_HOVER)
+BTN_SECONDARY_STYLE = dict(bg="#f0f2f5",     fg=TEXT_FG,  hover_bg="#e2e6ea")
+BTN_DANGER          = dict(bg=RED_ACCENT,    fg=WHITE,    hover_bg=RED_HOVER)
+BTN_SUCCESS_STYLE   = dict(bg=BTN_SUCCESS,   fg=WHITE,    hover_bg=BTN_SUCCESS_HOVER)
+BTN_MUTED_STYLE     = dict(bg=BTN_MUTED,     fg=WHITE,    hover_bg=BTN_MUTED_HOVER)
+
+# ---------------------------------------------------------------------------
 # Font loading — Inter from assets/ folder
 # ---------------------------------------------------------------------------
 def _load_inter_fonts() -> str:
@@ -58,15 +93,12 @@ def _load_inter_fonts() -> str:
         return "Segoe UI"
 
     try:
-        # pyglet is the cleanest way to register fonts with tkinter on Windows
-        # but we can use a pure-tkinter approach via the undocumented font.Font loader
         import ctypes
         FR_PRIVATE = 0x10
         for path in fonts.values():
             ctypes.windll.gdi32.AddFontResourceExW(str(path), FR_PRIVATE, 0)
         return "Inter"
     except Exception:
-        # Non-Windows fallback: try tkinter's built-in font loading
         try:
             root_check = tk.Tk()
             root_check.withdraw()
@@ -79,33 +111,8 @@ def _load_inter_fonts() -> str:
 _FONT_FAMILY = None  # Set after tk.Tk() is created
 
 # ---------------------------------------------------------------------------
-# Color System — Navy + Red Accent
+# Typography — Segoe UI default; updated by _apply_font() after font load
 # ---------------------------------------------------------------------------
-NAVY       = "#003366"   # FAU primary navy
-NAVY_LIGHT = "#004488"   # Slightly lighter navy for hover/accents
-RED_ACCENT       = "#c53030"   # Red accent
-RED_ACCENT_LIGHT = "#a12424"   # Darker red hover
-WHITE         = "#ffffff"
-PANEL_BG      = "#F0F4F8"   # Cool light gray panel
-PANEL_BG_DARK = "#E2E8F0"   # Slightly darker panel for contrast
-BORDER     = "#CBD5E0"   # Subtle border color
-
-# Semantic colors
-BG_COLOR      = NAVY
-PANEL_BG      = PANEL_BG
-NAVY   = NAVY
-BTN_RED       = RED_ACCENT
-NAVY_HOVER = NAVY_LIGHT
-RED_ACCENT    = "#C53030"
-BTN_SUCCESS   = "#276749"
-TEXT_FG       = "#1A2332"
-TEXT_MUTED    = "#4A5568"
-ACCENT_FG     = NAVY
-SUCCESS_COLOR = "#276749"
-WARNING_COLOR = "#C05621"
-
-# Typography — Segoe UI is clean and Windows-native
-# Font tuples built after font loading — see InterventionSorterApp.__init__
 FONT_MAIN   = ("Segoe UI", 10)
 FONT_BOLD   = ("Segoe UI", 10, "bold")
 FONT_HEADER = ("Segoe UI", 15, "bold")
@@ -116,104 +123,127 @@ FONT_MONO   = ("Consolas", 9)
 
 def _apply_font(family: str) -> None:
     """Update all FONT_* globals to use the loaded font family."""
-    global FONT_MAIN, FONT_BOLD, FONT_HEADER, FONT_TITLE, FONT_SUB, FONT_SMALL, FONT_MONO
+    global FONT_MAIN, FONT_BOLD, FONT_HEADER, FONT_TITLE, FONT_SUB, FONT_SMALL
     FONT_MAIN   = (family, 10)
     FONT_BOLD   = (family, 10, "bold")
     FONT_HEADER = (family, 15, "bold")
     FONT_TITLE  = (family, 11, "bold")
     FONT_SUB    = (family, 9)
     FONT_SMALL  = (family, 8)
-    FONT_MONO   = ("Consolas", 9)   # Mono stays Consolas for log boxes
+    # FONT_MONO intentionally stays Consolas for log boxes
 
 
-def section_label(parent, text: str) -> tk.Label:
-    """Red accent bar + uppercase label."""
+def section_label(parent, text: str) -> tk.Frame:
+    """Left red-accent bar + uppercase section heading."""
     frame = tk.Frame(parent, bg=PANEL_BG)
-    # Red accent bar on the left
-    tk.Frame(frame, bg="#c53030", width=3).pack(side="left", fill="y", padx=(0, 8))
+    tk.Frame(frame, bg=RED_ACCENT, width=3).pack(side="left", fill="y", padx=(0, 8))
     tk.Label(frame, text=text.upper(), bg=PANEL_BG,
-             fg="#1a1f2e", font=FONT_TITLE).pack(side="left", anchor="w")
+             fg=NAVY_DARK, font=FONT_TITLE).pack(side="left", anchor="w")
     return frame
 
 
 class RoundedButton(tk.Canvas):
     """
-    A canvas-drawn button with rounded corners.
-    Looks modern — tkinter's default Button is always square.
+    Canvas-drawn button with rounded corners and consistent hover / active states.
+
+    Use the module-level BTN_* style presets for visual hierarchy:
+        RoundedButton(parent, text="Run",   command=fn, **BTN_PRIMARY,        font=FONT_BOLD)
+        RoundedButton(parent, text="Clear", command=fn, **BTN_SECONDARY_STYLE, font=FONT_MAIN)
+        RoundedButton(parent, text="Reset", command=fn, **BTN_DANGER,          font=FONT_MAIN)
+        RoundedButton(parent, text="Done",  command=fn, **BTN_SUCCESS_STYLE,   font=FONT_BOLD)
+        RoundedButton(parent, text="Skip",  command=fn, **BTN_MUTED_STYLE,     font=FONT_MAIN)
     """
-    def __init__(self, parent, text, command=None, bg="#1a1f2e", fg="#ffffff",
-                 hover_bg=None, font=None, padx=20, pady=9, radius=6, **kwargs):
+
+    _DISABLED_COLOR = "#9aa3b0"
+
+    def __init__(self, parent, text, command=None,
+                 bg=NAVY_DARK, fg=WHITE, hover_bg=None,
+                 font=None, padx=20, pady=9, radius=6, **kwargs):
         self._bg      = bg
         self._hover   = hover_bg or self._darken(bg)
         self._fg      = fg
         self._text    = text
         self._command = command
         self._radius  = radius
-        self._font    = font or ("Segoe UI", 10, "bold")
+        self._font    = font or FONT_BOLD
         self._padx    = padx
         self._pady    = pady
 
-        # Measure text to size canvas
+        # Measure text to size the canvas correctly
         tmp = tk.Label(parent, text=text, font=self._font)
         tmp.update_idletasks()
-        tw = tmp.winfo_reqwidth()
-        th = tmp.winfo_reqheight()
+        w = tmp.winfo_reqwidth() + padx * 2
+        h = tmp.winfo_reqheight() + pady * 2
         tmp.destroy()
 
-        w = tw + padx * 2
-        h = th + pady * 2
-
         super().__init__(parent, width=w, height=h,
-                        bg=parent.cget("bg"),
-                        highlightthickness=0, cursor="hand2", **kwargs)
+                         bg=parent.cget("bg"),
+                         highlightthickness=0, cursor="hand2", **kwargs)
 
         self._draw(self._bg)
+        self._bind_active()
 
-        self.bind("<Enter>",    lambda e: self._draw(self._hover))
-        self.bind("<Leave>",    lambda e: self._draw(self._bg))
-        self.bind("<Button-1>", lambda e: self._on_press())
-        self.bind("<ButtonRelease-1>", lambda e: self._on_release())
+    # ── Drawing ────────────────────────────────────────────────────────────
 
-    def _draw(self, color):
+    def _draw(self, color: str) -> None:
         self.delete("all")
         w, h, r = int(self["width"]), int(self["height"]), self._radius
-        # Rounded rectangle
-        self.create_arc(0, 0, r*2, r*2, start=90, extent=90, fill=color, outline=color)
-        self.create_arc(w-r*2, 0, w, r*2, start=0, extent=90, fill=color, outline=color)
-        self.create_arc(0, h-r*2, r*2, h, start=180, extent=90, fill=color, outline=color)
-        self.create_arc(w-r*2, h-r*2, w, h, start=270, extent=90, fill=color, outline=color)
-        self.create_rectangle(r, 0, w-r, h, fill=color, outline=color)
-        self.create_rectangle(0, r, w, h-r, fill=color, outline=color)
+        self.create_arc(0,     0,     r*2,   r*2,   start=90,  extent=90, fill=color, outline=color)
+        self.create_arc(w-r*2, 0,     w,     r*2,   start=0,   extent=90, fill=color, outline=color)
+        self.create_arc(0,     h-r*2, r*2,   h,     start=180, extent=90, fill=color, outline=color)
+        self.create_arc(w-r*2, h-r*2, w,     h,     start=270, extent=90, fill=color, outline=color)
+        self.create_rectangle(r, 0,   w-r,   h,     fill=color, outline=color)
+        self.create_rectangle(0, r,   w,     h-r,   fill=color, outline=color)
         self.create_text(w//2, h//2, text=self._text, fill=self._fg,
-                        font=self._font, anchor="center")
+                         font=self._font, anchor="center")
 
-    def _on_press(self):
+    # ── Interaction ────────────────────────────────────────────────────────
+
+    def _on_press(self) -> None:
         self._draw(self._darken(self._hover))
 
-    def _on_release(self):
+    def _on_release(self) -> None:
         self._draw(self._hover)
         if self._command:
             self._command()
 
-    def config(self, **kwargs):
+    # ── Event binding helpers ──────────────────────────────────────────────
+
+    def _bind_active(self) -> None:
+        self.bind("<Enter>",           lambda e: self._draw(self._hover))
+        self.bind("<Leave>",           lambda e: self._draw(self._bg))
+        self.bind("<Button-1>",        lambda e: self._on_press())
+        self.bind("<ButtonRelease-1>", lambda e: self._on_release())
+
+    def _unbind_active(self) -> None:
+        for seq in ("<Enter>", "<Leave>", "<Button-1>", "<ButtonRelease-1>"):
+            self.unbind(seq)
+
+    # ── State management ───────────────────────────────────────────────────
+
+    def config(self, **kwargs) -> None:
         if "state" in kwargs:
             if kwargs["state"] == "disabled":
-                self._draw("#9aa3b0")
-                self.unbind("<Button-1>")
-                self.unbind("<Enter>")
-                self.unbind("<Leave>")
-            else:
+                self._draw(self._DISABLED_COLOR)
+                self._unbind_active()
+                self.configure(cursor="")
+            elif kwargs["state"] == "normal":
                 self._draw(self._bg)
-                self.bind("<Enter>",    lambda e: self._draw(self._hover))
-                self.bind("<Leave>",    lambda e: self._draw(self._bg))
-                self.bind("<Button-1>", lambda e: self._on_press())
+                self._bind_active()
+                self.configure(cursor="hand2")
+            remaining = {k: v for k, v in kwargs.items() if k != "state"}
+        else:
+            remaining = kwargs
+        if remaining:
+            super().config(**remaining)
+
+    # ── Utilities ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _darken(hex_color):
-        hex_color = hex_color.lstrip("#")
-        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        r, g, b = max(0, r-25), max(0, g-25), max(0, b-25)
-        return f"#{r:02x}{g:02x}{b:02x}"
+    def _darken(hex_color: str) -> str:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"#{max(0,r-25):02x}{max(0,g-25):02x}{max(0,b-25):02x}"
 
 
 class FilePickerRow(tk.Frame):
@@ -247,14 +277,11 @@ class FilePickerRow(tk.Frame):
         )
         entry.grid(row=0, column=1, padx=(0, 8), ipady=5)
 
-        browse_btn = tk.Button(
-            self, text="Browse", font=FONT_BOLD,
-            bg="#1a1f2e", fg="#ffffff", relief="flat",
-            padx=12, pady=5, cursor="hand2",
-            activebackground=NAVY_LIGHT, activeforeground="#ffffff",
+        RoundedButton(
+            self, text="Browse",
             command=lambda: self._browse(filetypes),
-        )
-        browse_btn.grid(row=0, column=2)
+            **BTN_MUTED_STYLE, font=FONT_BOLD, padx=12, pady=5, radius=6,
+        ).grid(row=0, column=2)
 
         if tooltip:
             tip = tk.Label(
@@ -322,36 +349,36 @@ class InterventionSorterApp(tk.Tk):
         header.pack(fill="x")
 
         # Red accent top stripe
-        tk.Frame(header, bg="#c53030", height=4).pack(fill="x")
+        tk.Frame(header, bg=RED_ACCENT, height=4).pack(fill="x")
 
         # Content row
-        header_inner = tk.Frame(header, bg="#1a1f2e", pady=14, padx=20)
+        header_inner = tk.Frame(header, bg=NAVY_DARK, pady=14, padx=20)
         header_inner.pack(fill="x")
 
         # Left: App name
         tk.Label(
             header_inner, text=APP_NAME.upper(),
-            bg="#1a1f2e", fg="#ffffff",
-            font=("Segoe UI", 14, "bold"),
+            bg=NAVY_DARK, fg=WHITE,
+            font=(FONT_HEADER[0], 14, "bold"),
         ).pack(side="left")
 
         tk.Label(
             header_inner, text="  |  Academic Advising Intervention Workflow",
-            bg="#1a1f2e", fg="#A0B4CC",
-            font=("Segoe UI", 10),
+            bg=NAVY_DARK, fg="#A0B4CC",
+            font=FONT_MAIN,
         ).pack(side="left")
 
         # Right: Version badge
-        ver_frame = tk.Frame(header_inner, bg="#c53030", padx=8, pady=2)
+        ver_frame = tk.Frame(header_inner, bg=RED_ACCENT, padx=8, pady=2)
         ver_frame.pack(side="right")
         tk.Label(
             ver_frame, text=f"v{APP_VERSION}",
-            bg="#c53030", fg="#1a1f2e",
-            font=("Segoe UI", 9, "bold"),
+            bg=RED_ACCENT, fg=NAVY_DARK,
+            font=(FONT_MAIN[0], 9, "bold"),
         ).pack()
 
         # Red accent bottom stripe
-        tk.Frame(header, bg="#c53030", height=2).pack(fill="x")
+        tk.Frame(header, bg=RED_ACCENT, height=2).pack(fill="x")
 
         # ── Notebook tabs ──────────────────────────────────────────
         style = ttk.Style()
@@ -365,16 +392,16 @@ class InterventionSorterApp(tk.Tk):
         )
         # Inactive tabs
         style.configure("TNotebook.Tab",
-            font=("Segoe UI", 10, "bold"),
+            font=(FONT_BOLD[0], FONT_BOLD[1], "bold"),
             padding=[18, 8],
-            background=NAVY_LIGHT,
+            background=NAVY_DARK,
             foreground="#A0B4CC",
             borderwidth=0,
         )
         # Active tab
         style.map("TNotebook.Tab",
-            background=[("selected", PANEL_BG), ("active", NAVY)],
-            foreground=[("selected", NAVY), ("active", "#ffffff")],
+            background=[("selected", PANEL_BG), ("active", NAVY_DARK)],
+            foreground=[("selected", NAVY),     ("active", WHITE)],
             expand=[("selected", [1, 1, 1, 0])],
         )
         # Separator styling
@@ -510,32 +537,28 @@ class InterventionSorterApp(tk.Tk):
         self._run_btn = RoundedButton(
             btn_frame, text='Run Full Processing',
             command=self._on_run,
-            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
-            font=FONT_BOLD, padx=20, pady=9, radius=6,
+            **BTN_PRIMARY, font=FONT_BOLD, padx=20, pady=9,
         )
         self._run_btn.pack(side="left", padx=(0, 10))
 
         self._validate_btn = RoundedButton(
             btn_frame, text='Validate Only',
             command=self._on_validate,
-            bg="#f0f2f5", fg="#1a1f2e", hover_bg="#e2e6ea",
-            font=FONT_MAIN, padx=14, pady=8, radius=6,
+            **BTN_SECONDARY_STYLE, font=FONT_MAIN, padx=14, pady=8,
         )
         self._validate_btn.pack(side="left", padx=(0, 10))
 
         self._precheck_btn = RoundedButton(
             btn_frame, text='Pre-Run Check',
             command=self._on_prerun_check,
-            bg="#c53030", fg="#ffffff", hover_bg="#a12424",
-            font=FONT_MAIN, padx=14, pady=8, radius=6,
+            **BTN_DANGER, font=FONT_MAIN, padx=14, pady=8,
         )
         self._precheck_btn.pack(side="left", padx=(0, 10))
 
         self._clear_btn = RoundedButton(
             btn_frame, text='Clear',
             command=self._on_clear,
-            bg="#f0f2f5", fg="#1a1f2e", hover_bg="#e2e6ea",
-            font=FONT_MAIN, padx=14, pady=8, radius=6,
+            **BTN_SECONDARY_STYLE, font=FONT_MAIN, padx=14, pady=8,
         )
         self._clear_btn.pack(side="left")
 
@@ -659,16 +682,14 @@ class InterventionSorterApp(tk.Tk):
         # Select all / none shortcuts
         shortcut_frame = tk.Frame(dialog, bg=PANEL_BG)
         shortcut_frame.pack(fill="x", padx=20, pady=(0, 8))
-        tk.Button(shortcut_frame, text="Select All",
-                  font=FONT_SUB, bg="#4A5568", fg="#ffffff",
-                  relief="flat", padx=8, pady=4, cursor="hand2",
-                  command=lambda: [v.set(True) for v in check_vars.values()]
-                  ).pack(side="left", padx=(0, 6))
-        tk.Button(shortcut_frame, text="Select None",
-                  font=FONT_SUB, bg="#4A5568", fg="#ffffff",
-                  relief="flat", padx=8, pady=4, cursor="hand2",
-                  command=lambda: [v.set(False) for v in check_vars.values()]
-                  ).pack(side="left")
+        RoundedButton(shortcut_frame, text="Select All",
+                      **BTN_MUTED_STYLE, font=FONT_SUB, padx=8, pady=4,
+                      command=lambda: [v.set(True) for v in check_vars.values()]
+                      ).pack(side="left", padx=(0, 6))
+        RoundedButton(shortcut_frame, text="Select None",
+                      **BTN_MUTED_STYLE, font=FONT_SUB, padx=8, pady=4,
+                      command=lambda: [v.set(False) for v in check_vars.values()]
+                      ).pack(side="left")
 
         # Action buttons
         bf = tk.Frame(dialog, bg=PANEL_BG)
@@ -693,14 +714,12 @@ class InterventionSorterApp(tk.Tk):
         def on_cancel():
             dialog.destroy()
 
-        tk.Button(bf, text="Run with Selected Groups",
-                  font=FONT_BOLD, bg="#1a1f2e", fg="white",
-                  relief="flat", padx=16, pady=8, cursor="hand2",
-                  command=on_run).pack(side="left", padx=(0, 8))
-        tk.Button(bf, text="Cancel",
-                  font=FONT_MAIN, bg="#4A5568", fg="#ffffff",
-                  relief="flat", padx=12, pady=8, cursor="hand2",
-                  command=on_cancel).pack(side="left")
+        RoundedButton(bf, text="Run with Selected Groups",
+                      **BTN_PRIMARY, font=FONT_BOLD, padx=16, pady=8,
+                      command=on_run).pack(side="left", padx=(0, 8))
+        RoundedButton(bf, text="Cancel",
+                      **BTN_MUTED_STYLE, font=FONT_MAIN, padx=12, pady=8,
+                      command=on_cancel).pack(side="left")
 
         dialog.wait_window()
         return result["proceed"], result["skip_groups"]
@@ -787,14 +806,12 @@ class InterventionSorterApp(tk.Tk):
         def on_cancel():
             dialog.destroy()
 
-        tk.Button(bf, text="Proceed", font=FONT_BOLD,
-                  bg="#1a1f2e", fg="white", relief="flat",
-                  padx=16, pady=8, cursor="hand2",
-                  command=on_proceed).pack(side="left", padx=(0, 8))
-        tk.Button(bf, text="Cancel", font=FONT_MAIN,
-                  bg="#4A5568", fg="#ffffff", relief="flat",
-                  padx=12, pady=8, cursor="hand2",
-                  command=on_cancel).pack(side="left")
+        RoundedButton(bf, text="Proceed",
+                      **BTN_PRIMARY, font=FONT_BOLD, padx=16, pady=8,
+                      command=on_proceed).pack(side="left", padx=(0, 8))
+        RoundedButton(bf, text="Cancel",
+                      **BTN_MUTED_STYLE, font=FONT_MAIN, padx=12, pady=8,
+                      command=on_cancel).pack(side="left")
 
         dialog.wait_window()
         return result["proceed"]
@@ -1126,8 +1143,7 @@ class InterventionSorterApp(tk.Tk):
         self._report_run_btn = RoundedButton(
             btn_frame2, text='Generate Faculty Report',
             command=self._on_run_report_status,
-            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
-            font=FONT_BOLD, padx=20, pady=9, radius=6,
+            **BTN_PRIMARY, font=FONT_BOLD, padx=20, pady=9,
         )
         self._report_run_btn.pack(side="left")
 
@@ -1303,17 +1319,14 @@ class InterventionSorterApp(tk.Tk):
         self._midterm_run_btn = RoundedButton(
             btn_frame, text='Run Midterm Sort',
             command=self._on_run_midterm,
-            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
-            font=FONT_BOLD, padx=20, pady=9, radius=6,
+            **BTN_PRIMARY, font=FONT_BOLD, padx=20, pady=9,
         )
         self._midterm_run_btn.pack(side="left", padx=(0, 10))
 
-        tk.Button(
-            btn_frame,
-            text="Clear",
-            font=FONT_MAIN, bg="#4A5568", fg="#ffffff",
-            relief="flat", padx=14, pady=10, cursor="hand2",
-            command=lambda: self._midterm_clear_log(),
+        RoundedButton(
+            btn_frame, text="Clear",
+            **BTN_MUTED_STYLE, font=FONT_MAIN, padx=14, pady=9,
+            command=self._midterm_clear_log,
         ).pack(side="left")
 
         self._midterm_progress_bar = ttk.Progressbar(
@@ -1529,16 +1542,14 @@ class InterventionSorterApp(tk.Tk):
         self._trend_run_btn = RoundedButton(
             btn_frame, text='Generate Trend Report',
             command=self._on_run_trend,
-            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
-            font=FONT_BOLD, padx=20, pady=9, radius=6,
+            **BTN_PRIMARY, font=FONT_BOLD, padx=20, pady=9,
         )
         self._trend_run_btn.pack(side="left", padx=(0, 10))
 
-        tk.Button(
+        RoundedButton(
             btn_frame, text="Clear",
-            font=FONT_MAIN, bg="#4A5568", fg="#ffffff",
-            relief="flat", padx=14, pady=10, cursor="hand2",
-            command=lambda: self._trend_clear_log(),
+            **BTN_MUTED_STYLE, font=FONT_MAIN, padx=14, pady=9,
+            command=self._trend_clear_log,
         ).pack(side="left")
 
         self._trend_progress_bar = ttk.Progressbar(
@@ -1595,8 +1606,7 @@ class InterventionSorterApp(tk.Tk):
         RoundedButton(
             master_btn_frame, text="Generate Master Season Report",
             command=self._on_generate_master_report,
-            bg="#276749", fg="#ffffff", hover_bg="#1e5038",
-            font=FONT_BOLD, padx=20, pady=9, radius=6,
+            **BTN_SUCCESS_STYLE, font=FONT_BOLD, padx=20, pady=9,
         ).pack(side="left")
 
         ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
@@ -1843,18 +1853,16 @@ class InterventionSorterApp(tk.Tk):
             btn_frame = tk.Frame(card, bg="white")
             btn_frame.pack(anchor="w", pady=(8, 0))
 
-            complete_btn = tk.Button(
+            complete_btn = RoundedButton(
                 btn_frame, text="Mark Complete",
-                font=FONT_SUB, bg=colors[i], fg="white",
-                relief="flat", padx=8, pady=4, cursor="hand2",
+                bg=colors[i], fg=WHITE, font=FONT_SUB, padx=8, pady=4,
                 command=lambda n=cp_name: self._on_mark_checkpoint_complete(n),
             )
             complete_btn.pack(side="left", padx=(0, 6))
 
-            reset_btn = tk.Button(
+            reset_btn = RoundedButton(
                 btn_frame, text="Reset",
-                font=FONT_SUB, bg="#4A5568", fg="#ffffff",
-                relief="flat", padx=8, pady=4, cursor="hand2",
+                **BTN_MUTED_STYLE, font=FONT_SUB, padx=8, pady=4,
                 command=lambda n=cp_name: self._on_reset_checkpoint(n),
             )
             reset_btn.pack(side="left")
@@ -1880,31 +1888,27 @@ class InterventionSorterApp(tk.Tk):
         self._new_sem_btn = RoundedButton(
             action_frame, text='Start New Semester',
             command=self._on_new_semester,
-            bg="#1a1f2e", fg="#ffffff", hover_bg="#252c3d",
-            font=FONT_BOLD, padx=16, pady=9, radius=6,
+            **BTN_PRIMARY, font=FONT_BOLD, padx=16, pady=9,
         )
         self._new_sem_btn.pack(side="left", padx=(0, 8))
 
         self._complete_sem_btn = RoundedButton(
-            btn_frame, text='Complete Semester',
+            action_frame, text='Complete Semester',
             command=self._on_complete_semester,
-            bg="#276749", fg="#ffffff", hover_bg="#1e5038",
-            font=FONT_MAIN, padx=14, pady=8, radius=6,
+            **BTN_SUCCESS_STYLE, font=FONT_MAIN, padx=14, pady=8,
         )
         self._complete_sem_btn.pack(side="left", padx=(0, 8))
 
         self._reset_sem_btn = RoundedButton(
-            btn_frame, text='Reset Semester',
+            action_frame, text='Reset Semester',
             command=self._on_reset_semester,
-            bg="#c53030", fg="#ffffff", hover_bg="#a12424",
-            font=FONT_MAIN, padx=14, pady=8, radius=6,
+            **BTN_DANGER, font=FONT_MAIN, padx=14, pady=8,
         )
         self._reset_sem_btn.pack(side="left", padx=(0, 8))
 
-        tk.Button(
+        RoundedButton(
             action_frame, text="Refresh",
-            font=FONT_MAIN, bg="#4A5568", fg="#ffffff",
-            relief="flat", padx=14, pady=10, cursor="hand2",
+            **BTN_MUTED_STYLE, font=FONT_MAIN, padx=14, pady=9,
             command=self._refresh_semester_tab,
         ).pack(side="left")
 
@@ -2003,16 +2007,14 @@ class InterventionSorterApp(tk.Tk):
         def on_skip():
             dialog.destroy()
 
-        tk.Button(bf, text="Create Semester", font=FONT_BOLD,
-                  bg="#1a1f2e", fg="white", relief="flat",
-                  padx=16, pady=8, cursor="hand2",
-                  command=on_create).pack(side="left", padx=(0, 8))
+        RoundedButton(bf, text="Create Semester",
+                      **BTN_PRIMARY, font=FONT_BOLD, padx=16, pady=8,
+                      command=on_create).pack(side="left", padx=(0, 8))
 
         if on_startup:
-            tk.Button(bf, text="Skip for now", font=FONT_MAIN,
-                      bg="#4A5568", fg="#ffffff", relief="flat",
-                      padx=12, pady=8, cursor="hand2",
-                      command=on_skip).pack(side="left")
+            RoundedButton(bf, text="Skip for now",
+                          **BTN_MUTED_STYLE, font=FONT_MAIN, padx=12, pady=8,
+                          command=on_skip).pack(side="left")
 
         dialog.wait_window()
 
@@ -2377,15 +2379,13 @@ class InterventionSorterApp(tk.Tk):
         btn_row = tk.Frame(inner, bg=PANEL_BG)
         btn_row.pack(fill="x", pady=(20, 8))
 
-        tk.Button(btn_row, text="Save Settings",
-                  font=FONT_BOLD, bg="#1a1f2e", fg="white",
-                  relief="flat", padx=20, pady=10, cursor="hand2",
-                  command=self._on_save_settings).pack(side="left", padx=(0, 10))
+        RoundedButton(btn_row, text="Save Settings",
+                      **BTN_PRIMARY, font=FONT_BOLD, padx=20, pady=9,
+                      command=self._on_save_settings).pack(side="left", padx=(0, 10))
 
-        tk.Button(btn_row, text="Reset to Defaults",
-                  font=FONT_MAIN, bg="#4A5568", fg="#ffffff",
-                  relief="flat", padx=14, pady=10, cursor="hand2",
-                  command=self._on_reset_settings).pack(side="left")
+        RoundedButton(btn_row, text="Reset to Defaults",
+                      **BTN_DANGER, font=FONT_MAIN, padx=14, pady=9,
+                      command=self._on_reset_settings).pack(side="left")
 
         self._settings_status = tk.Label(
             inner, text="", bg=PANEL_BG, fg=SUCCESS_COLOR, font=FONT_MAIN
@@ -2575,208 +2575,6 @@ class InterventionSorterApp(tk.Tk):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import traceback
-    try:
-        app = InterventionSorterApp()
-        app.mainloop()
-    except Exception:
-        traceback.print_exc()
-        input("\nPress Enter to close...")# ---------------------------------------------------------------------------
-# Color system — dark navy + red accent, warm off-white panels
-# ---------------------------------------------------------------------------
-NAVY          = "#1a1f2e"
-NAVY_HOVER    = "#252c3d"
-RED_ACCENT    = "#c53030"
-RED_HOVER     = "#a12424"
-PANEL_BG      = "#f7f8fa"
-PANEL_CARD    = "#ffffff"
-BORDER        = "#e2e6ea"
-TEXT_PRIMARY  = "#1a1f2e"
-TEXT_MUTED    = "#6b7a94"
-TEXT_LIGHT    = "#9aa3b0"
-SUCCESS_COLOR = "#276749"
-WARNING_COLOR = "#c05621"
-
-# Aliases
-BG_COLOR      = NAVY
-BTN_PRIMARY   = NAVY
-BTN_SECONDARY = NAVY_HOVER
-BTN_DANGER    = RED_ACCENT
-TEXT_FG       = TEXT_PRIMARY
-ACCENT_FG     = NAVY
-SUCCESS_COLOR = SUCCESS_COLOR
-WARNING_COLOR = WARNING_COLOR
-
-
-def _apply_font(family: str) -> None:
-    """Update all FONT_* globals to use the loaded font family."""
-    global FONT_MAIN, FONT_BOLD, FONT_HEADER, FONT_TITLE, FONT_SUB, FONT_SMALL, FONT_MONO
-    FONT_MAIN   = (family, 10)
-    FONT_BOLD   = (family, 10, "bold")
-    FONT_HEADER = (family, 15, "bold")
-    FONT_TITLE  = (family, 11, "bold")
-    FONT_SUB    = (family, 9)
-    FONT_SMALL  = (family, 8)
-    FONT_MONO   = ("Consolas", 9)   # Mono stays Consolas for log boxes
-
-
-def section_label(parent, text: str) -> tk.Label:
-    """Red accent bar + uppercase label."""
-    frame = tk.Frame(parent, bg=PANEL_BG)
-    # Red accent bar on the left
-    tk.Frame(frame, bg="#c53030", width=3).pack(side="left", fill="y", padx=(0, 8))
-    tk.Label(frame, text=text.upper(), bg=PANEL_BG,
-             fg="#1a1f2e", font=FONT_TITLE).pack(side="left", anchor="w")
-    return frame
-
-
-class RoundedButton(tk.Canvas):
-    """
-    A canvas-drawn button with rounded corners.
-    Looks modern — tkinter's default Button is always square.
-    """
-    def __init__(self, parent, text, command=None, bg="#1a1f2e", fg="#ffffff",
-                 hover_bg=None, font=None, padx=20, pady=9, radius=6, **kwargs):
-        self._bg      = bg
-        self._hover   = hover_bg or self._darken(bg)
-        self._fg      = fg
-        self._text    = text
-        self._command = command
-        self._radius  = radius
-        self._font    = font or ("Segoe UI", 10, "bold")
-        self._padx    = padx
-        self._pady    = pady
-
-        # Measure text to size canvas
-        tmp = tk.Label(parent, text=text, font=self._font)
-        tmp.update_idletasks()
-        tw = tmp.winfo_reqwidth()
-        th = tmp.winfo_reqheight()
-        tmp.destroy()
-
-        w = tw + padx * 2
-        h = th + pady * 2
-
-        super().__init__(parent, width=w, height=h,
-                        bg=parent.cget("bg"),
-                        highlightthickness=0, cursor="hand2", **kwargs)
-
-        self._draw(self._bg)
-
-        self.bind("<Enter>",    lambda e: self._draw(self._hover))
-        self.bind("<Leave>",    lambda e: self._draw(self._bg))
-        self.bind("<Button-1>", lambda e: self._on_press())
-        self.bind("<ButtonRelease-1>", lambda e: self._on_release())
-
-    def _draw(self, color):
-        self.delete("all")
-        w, h, r = int(self["width"]), int(self["height"]), self._radius
-        # Rounded rectangle
-        self.create_arc(0, 0, r*2, r*2, start=90, extent=90, fill=color, outline=color)
-        self.create_arc(w-r*2, 0, w, r*2, start=0, extent=90, fill=color, outline=color)
-        self.create_arc(0, h-r*2, r*2, h, start=180, extent=90, fill=color, outline=color)
-        self.create_arc(w-r*2, h-r*2, w, h, start=270, extent=90, fill=color, outline=color)
-        self.create_rectangle(r, 0, w-r, h, fill=color, outline=color)
-        self.create_rectangle(0, r, w, h-r, fill=color, outline=color)
-        self.create_text(w//2, h//2, text=self._text, fill=self._fg,
-                        font=self._font, anchor="center")
-
-    def _on_press(self):
-        self._draw(self._darken(self._hover))
-
-    def _on_release(self):
-        self._draw(self._hover)
-        if self._command:
-            self._command()
-
-    def config(self, **kwargs):
-        if "state" in kwargs:
-            if kwargs["state"] == "disabled":
-                self._draw("#9aa3b0")
-                self.unbind("<Button-1>")
-                self.unbind("<Enter>")
-                self.unbind("<Leave>")
-            else:
-                self._draw(self._bg)
-                self.bind("<Enter>",    lambda e: self._draw(self._hover))
-                self.bind("<Leave>",    lambda e: self._draw(self._bg))
-                self.bind("<Button-1>", lambda e: self._on_press())
-
-    @staticmethod
-    def _darken(hex_color):
-        hex_color = hex_color.lstrip("#")
-        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        r, g, b = max(0, r-25), max(0, g-25), max(0, b-25)
-        return f"#{r:02x}{g:02x}{b:02x}"
-
-
-class FilePickerRow(tk.Frame):
-    """A labeled file-picker row: [Label] [Entry (path)] [Browse button]."""
-
-    def __init__(
-        self,
-        parent,
-        label: str,
-        filetypes: list,
-        is_directory: bool = False,
-        tooltip: str = "",
-        **kwargs,
-    ):
-        super().__init__(parent, bg=PANEL_BG, **kwargs)
-        self._path = tk.StringVar()
-        self._is_directory = is_directory
-
-        lbl = tk.Label(
-            self, text=label, bg=PANEL_BG, fg=TEXT_FG,
-            font=FONT_BOLD, width=22, anchor="w",
-        )
-        lbl.grid(row=0, column=0, padx=(0, 8), sticky="w")
-
-        entry = tk.Entry(
-            self, textvariable=self._path, font=FONT_MAIN,
-            width=48, relief="flat", bg="#ffffff",
-            fg=TEXT_FG, insertbackground=NAVY,
-            highlightthickness=1, highlightbackground=BORDER,
-            highlightcolor=NAVY,
-        )
-        entry.grid(row=0, column=1, padx=(0, 8), ipady=5)
-
-        browse_btn = tk.Button(
-            self, text="Browse", font=FONT_BOLD,
-            bg="#1a1f2e", fg="#ffffff", relief="flat",
-            padx=12, pady=5, cursor="hand2",
-            activebackground=NAVY_LIGHT, activeforeground="#ffffff",
-            command=lambda: self._browse(filetypes),
-        )
-        browse_btn.grid(row=0, column=2)
-
-        if tooltip:
-            tip = tk.Label(
-                self, text=tooltip, bg=PANEL_BG, fg=TEXT_MUTED,
-                font=FONT_SUB,
-            )
-            tip.grid(row=1, column=1, sticky="w", pady=(2, 0))
-
-        self.columnconfigure(1, weight=1)
-
-    def _browse(self, filetypes):
-        if self._is_directory:
-            path = filedialog.askdirectory(title="Select Folder")
-        else:
-            path = filedialog.askopenfilename(filetypes=filetypes)
-        if path:
-            self._path.set(path)
-
-    @property
-    def path(self) -> str:
-        return self._path.get().strip()
-
-    @path.setter
-    def path(self, value: str):
-        self._path.set(value)
-
 
 if __name__ == "__main__":
     import traceback
