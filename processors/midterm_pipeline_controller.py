@@ -40,6 +40,7 @@ from utils.validation import (
 )
 from utils.logging_utils import QALog, setup_logger
 from processors.campaign_manager import CampaignManager
+from processors.semester_manager import SemesterManager
 
 logger = logging.getLogger("intervention_sorter")
 
@@ -192,6 +193,22 @@ class MidtermPipelineController:
                 cm.record_run(
                     season=inputs.season,
                     checkpoint_type=inputs.checkpoint_type,
+                    students_processed=len(students_df),
+                    students_assigned=total_assigned,
+                    students_unmatched=total_unmatched,
+                    output_file=str(output_path),
+                )
+
+            # Record semester run
+            sm = SemesterManager()
+            if sm.has_active_semester():
+                sm.save_file_paths(
+                    contact_report=str(inputs.contact_report),
+                    control_file=str(inputs.control_file),
+                    group_folder=str(inputs.group_dir),
+                )
+                sm.record_run(
+                    checkpoint_name=inputs.checkpoint_type,
                     students_processed=len(students_df),
                     students_assigned=total_assigned,
                     students_unmatched=total_unmatched,

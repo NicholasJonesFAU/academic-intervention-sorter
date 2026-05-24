@@ -21,6 +21,7 @@ from processors.pipeline_controller import PipelineController, PipelineInputs, P
 from processors.midterm_pipeline_controller import MidtermPipelineController, MidtermPipelineInputs
 from processors.trend_analyzer import TrendAnalyzer
 from processors.campaign_manager import CampaignManager
+from processors.semester_manager import SemesterManager, SEMESTER_STATUS_ACTIVE
 from processors.season_report import SeasonReportGenerator
 from processors.prerun_checker import PreRunChecker
 from processors.summary_enhancer import SummaryEnhancer
@@ -140,10 +141,12 @@ class InterventionSorterApp(tk.Tk):
         self._processing = False
         self._midterm_processing = False
         self._trend_processing = False
+        self._semester_mgr = SemesterManager()
         self._exclude_var = tk.BooleanVar(value=False)
         self._midterm_exclude_var = tk.BooleanVar(value=False)
         self._build_ui()
         self._set_defaults()
+        self.after(200, self._check_semester_on_startup)
         self._report_processing = False
 
         logger.info("GUI initialized: %s v%s", APP_NAME, APP_VERSION)
@@ -1022,6 +1025,7 @@ class InterventionSorterApp(tk.Tk):
     def _on_midterm_complete(self, result):
         self._midterm_processing = False
         self._trend_processing = False
+        self._semester_mgr = SemesterManager()
         self._midterm_run_btn.config(state="normal")
         self._midterm_progress_bar.stop()
         if result.success:
@@ -1046,6 +1050,7 @@ class InterventionSorterApp(tk.Tk):
     def _on_midterm_error(self, error_text: str):
         self._midterm_processing = False
         self._trend_processing = False
+        self._semester_mgr = SemesterManager()
         self._midterm_run_btn.config(state="normal")
         self._midterm_progress_bar.stop()
         self._midterm_log_write("\n\u274c Unexpected error:\n" + error_text[:400], "error")
@@ -1369,6 +1374,7 @@ class InterventionSorterApp(tk.Tk):
 
     def _on_trend_complete(self, success, message, overall):
         self._trend_processing = False
+        self._semester_mgr = SemesterManager()
         self._trend_run_btn.config(state="normal")
         self._trend_progress_bar.stop()
         if success:
@@ -1398,173 +1404,477 @@ class InterventionSorterApp(tk.Tk):
 
 
     def _build_campaign_tab(self):
-        """Build the Campaign Manager tab."""
-        outer = tk.Frame(self._campaign_tab, bg=PANEL_BG, padx=24, pady=16)
+        """Build the redesigned Campaigns / Semester Manager tab."""
+        tab = self._campaign_tab
+        outer = tk.Frame(tab, bg=PANEL_BG, padx=24, pady=16)
         outer.pack(fill="both", expand=True)
 
-        # ── Season selector row ───────────────────────────────────
-        top_frame = tk.Frame(outer, bg=PANEL_BG)
-        top_frame.pack(fill="x", pady=(0, 8))
+        # ── Active semester header ────────────────────────────────
+        self._sem_header_frame = tk.Frame(outer, bg=PANEL_BG)
+        self._sem_header_frame.pack(fill="x", pady=(0, 12))
 
-        section_label(top_frame, "Current Season").pack(side="left", anchor="w")
-
-        self._campaign_season_var = tk.StringVar(value="")
-        season_entry = tk.Entry(
-            top_frame, textvariable=self._campaign_season_var,
-            font=FONT_BOLD, width=28, relief="flat", bg="white",
-            highlightthickness=1, highlightbackground="#B0BEC5",
-            insertbackground=TEXT_FG,
+        self._sem_name_label = tk.Label(
+            self._sem_header_frame, text="No Active Semester",
+            bg=PANEL_BG, fg=TEXT_FG, font=FONT_HEADER,
         )
-        season_entry.pack(side="left", padx=(12, 8), ipady=4)
-        tk.Label(top_frame, text="(e.g. Fall 2026)",
-                 bg=PANEL_BG, fg="#78909C", font=FONT_SUB).pack(side="left")
+        self._sem_name_label.pack(side="left")
 
-        # ── Checkpoint type selector ──────────────────────────────
-        chk_frame = tk.Frame(outer, bg=PANEL_BG)
-        chk_frame.pack(fill="x", pady=(0, 8))
-        section_label(chk_frame, "Checkpoint Type").pack(side="left", anchor="w")
+        self._sem_status_label = tk.Label(
+            self._sem_header_frame, text="",
+            bg=PANEL_BG, fg="#78909C", font=FONT_MAIN,
+        )
+        self._sem_status_label.pack(side="left", padx=(12, 0))
 
-        from utils.config import CHECKPOINT_TYPES
-        self._checkpoint_type_var = tk.StringVar(value=CHECKPOINT_TYPES[0])
-        for i, ct in enumerate(CHECKPOINT_TYPES):
-            tk.Radiobutton(
-                chk_frame, text=ct, variable=self._checkpoint_type_var,
-                value=ct, bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
-                activebackground=PANEL_BG, selectcolor="white",
-            ).pack(side="left", padx=(12 if i == 0 else 4, 0))
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=(0, 12))
 
-        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+        # ── Checkpoint cards ──────────────────────────────────────
+        section_label(outer, "Checkpoints").pack(anchor="w", pady=(0, 8))
 
-        # ── Action buttons ────────────────────────────────────────
-        btn_frame = tk.Frame(outer, bg=PANEL_BG)
-        btn_frame.pack(fill="x", pady=(0, 12))
+        self._checkpoint_frames = {}
+        cards_frame = tk.Frame(outer, bg=PANEL_BG)
+        cards_frame.pack(fill="x", pady=(0, 12))
 
-        tk.Button(
-            btn_frame, text="⟳  Refresh",
-            font=FONT_MAIN, bg="#2F5496", fg="white",
-            relief="flat", padx=14, pady=8, cursor="hand2",
-            command=self._refresh_campaign_tab,
-        ).pack(side="left", padx=(0, 8))
+        from utils.config import SEMESTER_CHECKPOINTS
+        colors = [BTN_PRIMARY, "#375623", "#843C0C"]
+        for i, cp_name in enumerate(SEMESTER_CHECKPOINTS):
+            card = tk.Frame(cards_frame, bg="white", bd=1, relief="solid",
+                            padx=16, pady=12)
+            card.grid(row=0, column=i, padx=(0, 12), sticky="nsew")
+            cards_frame.columnconfigure(i, weight=1)
 
-        tk.Button(
-            btn_frame, text="🗑  Reset Season (Clear Assigned List)",
+            tk.Label(card, text=cp_name, bg="white", fg=TEXT_FG,
+                     font=FONT_BOLD).pack(anchor="w")
+
+            status_lbl = tk.Label(card, text="Not Started", bg="white",
+                                  fg="#78909C", font=FONT_MAIN)
+            status_lbl.pack(anchor="w", pady=(4, 0))
+
+            runs_lbl = tk.Label(card, text="", bg="white",
+                                fg="#546E7A", font=FONT_SUB)
+            runs_lbl.pack(anchor="w")
+
+            students_lbl = tk.Label(card, text="", bg="white",
+                                    fg="#546E7A", font=FONT_SUB)
+            students_lbl.pack(anchor="w")
+
+            # Mark Complete / Reset buttons
+            btn_frame = tk.Frame(card, bg="white")
+            btn_frame.pack(anchor="w", pady=(8, 0))
+
+            complete_btn = tk.Button(
+                btn_frame, text="✓ Mark Complete",
+                font=FONT_SUB, bg=colors[i], fg="white",
+                relief="flat", padx=8, pady=4, cursor="hand2",
+                command=lambda n=cp_name: self._on_mark_checkpoint_complete(n),
+            )
+            complete_btn.pack(side="left", padx=(0, 6))
+
+            reset_btn = tk.Button(
+                btn_frame, text="↺ Reset",
+                font=FONT_SUB, bg="#78909C", fg="white",
+                relief="flat", padx=8, pady=4, cursor="hand2",
+                command=lambda n=cp_name: self._on_reset_checkpoint(n),
+            )
+            reset_btn.pack(side="left")
+
+            self._checkpoint_frames[cp_name] = {
+                "card": card,
+                "status": status_lbl,
+                "runs": runs_lbl,
+                "students": students_lbl,
+                "complete_btn": complete_btn,
+                "reset_btn": reset_btn,
+                "color": colors[i],
+            }
+
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=12)
+
+        # ── Semester actions ──────────────────────────────────────
+        section_label(outer, "Semester Actions").pack(anchor="w", pady=(0, 8))
+
+        action_frame = tk.Frame(outer, bg=PANEL_BG)
+        action_frame.pack(fill="x", pady=(0, 12))
+
+        self._new_sem_btn = tk.Button(
+            action_frame, text="🎓  Start New Semester",
+            font=FONT_BOLD, bg=BTN_PRIMARY, fg="white",
+            relief="flat", padx=16, pady=10, cursor="hand2",
+            command=self._on_new_semester,
+        )
+        self._new_sem_btn.pack(side="left", padx=(0, 8))
+
+        self._complete_sem_btn = tk.Button(
+            action_frame, text="🏁  Complete Semester",
+            font=FONT_MAIN, bg="#375623", fg="white",
+            relief="flat", padx=14, pady=10, cursor="hand2",
+            command=self._on_complete_semester,
+        )
+        self._complete_sem_btn.pack(side="left", padx=(0, 8))
+
+        self._reset_sem_btn = tk.Button(
+            action_frame, text="🗑  Reset Semester",
             font=FONT_MAIN, bg=BTN_DANGER, fg="white",
-            relief="flat", padx=14, pady=8, cursor="hand2",
-            command=self._on_reset_season,
-        ).pack(side="left", padx=(0, 8))
-
-        # Assigned count badge
-        self._assigned_count_label = tk.Label(
-            btn_frame, text="", bg=PANEL_BG, fg="#2F5496", font=FONT_BOLD
+            relief="flat", padx=14, pady=10, cursor="hand2",
+            command=self._on_reset_semester,
         )
-        self._assigned_count_label.pack(side="left", padx=(12, 0))
+        self._reset_sem_btn.pack(side="left", padx=(0, 8))
 
-        # ── Run history table ─────────────────────────────────────
-        section_label(outer, "Run History").pack(anchor="w", pady=(0, 6))
+        tk.Button(
+            action_frame, text="⟳  Refresh",
+            font=FONT_MAIN, bg="#546E7A", fg="white",
+            relief="flat", padx=14, pady=10, cursor="hand2",
+            command=self._refresh_semester_tab,
+        ).pack(side="left")
 
-        table_frame = tk.Frame(outer, bg=PANEL_BG)
-        table_frame.pack(fill="both", expand=True)
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=12)
 
-        cols = ("Season", "Checkpoint", "Timestamp", "Processed",
-                "Assigned", "Unmatched", "Cumulative Assigned")
-        self._campaign_tree = ttk.Treeview(
-            table_frame, columns=cols, show="headings", height=12
+        # ── History ───────────────────────────────────────────────
+        section_label(outer, "Semester History").pack(anchor="w", pady=(0, 6))
+
+        hist_frame = tk.Frame(outer, bg=PANEL_BG)
+        hist_frame.pack(fill="both", expand=True)
+
+        cols = ("Semester", "Status", "Created", "Completed",
+                "PR1", "Midterm", "PR2", "Master Report")
+        self._history_tree = ttk.Treeview(
+            hist_frame, columns=cols, show="headings", height=8
         )
-        col_widths = [140, 160, 150, 90, 90, 90, 140]
-        for col, w in zip(cols, col_widths):
-            self._campaign_tree.heading(col, text=col)
-            self._campaign_tree.column(col, width=w, anchor="center")
-        self._campaign_tree.column("Season", anchor="w")
-        self._campaign_tree.column("Checkpoint", anchor="w")
+        widths = [160, 90, 150, 150, 90, 90, 90, 200]
+        for col, w in zip(cols, widths):
+            self._history_tree.heading(col, text=col)
+            self._history_tree.column(col, width=w, anchor="center")
+        self._history_tree.column("Semester", anchor="w")
+        self._history_tree.column("Master Report", anchor="w")
 
-        vsb = ttk.Scrollbar(table_frame, orient="vertical",
-                             command=self._campaign_tree.yview)
-        self._campaign_tree.configure(yscrollcommand=vsb.set)
-        self._campaign_tree.pack(side="left", fill="both", expand=True)
+        vsb = ttk.Scrollbar(hist_frame, orient="vertical",
+                             command=self._history_tree.yview)
+        self._history_tree.configure(yscrollcommand=vsb.set)
+        self._history_tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        # ── Repeat students section ───────────────────────────────
-        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
-        section_label(outer, "Repeat At-Risk Students").pack(anchor="w", pady=(0, 4))
+        # Initial refresh
+        self._refresh_semester_tab()
 
-        repeat_frame = tk.Frame(outer, bg=PANEL_BG)
-        repeat_frame.pack(fill="x")
+    # ------------------------------------------------------------------
+    # Semester tab methods
+    # ------------------------------------------------------------------
 
-        self._repeat_label = tk.Label(
-            repeat_frame, text="", bg=PANEL_BG, fg=TEXT_FG, font=FONT_MAIN,
-            justify="left",
-        )
-        self._repeat_label.pack(anchor="w")
+    def _check_semester_on_startup(self):
+        """Show new semester prompt if no active semester exists."""
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            self._show_new_semester_dialog(on_startup=True)
 
-        # Initial load
-        self._refresh_campaign_tab()
+    def _show_new_semester_dialog(self, on_startup: bool = False):
+        """Show dialog to create a new semester."""
+        dialog = tk.Toplevel(self)
+        dialog.title("Start New Semester")
+        dialog.geometry("460x240")
+        dialog.configure(bg=PANEL_BG)
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
 
-    def _refresh_campaign_tab(self):
-        """Reload campaign data and refresh the display."""
-        cm = CampaignManager()
+        msg = ("Welcome! Let's set up your semester campaign." if on_startup
+               else "Create a new semester campaign.")
 
-        # Update assigned count badge
-        count = cm.assigned_count()
-        self._assigned_count_label.config(
-            text=f"📋 {count:,} students in assigned list"
-        )
+        tk.Label(dialog, text=msg, bg=PANEL_BG, fg=TEXT_FG,
+                 font=FONT_BOLD, wraplength=400).pack(pady=(24, 4), padx=24, anchor="w")
+        tk.Label(dialog, text="All runs this semester will be organized together.",
+                 bg=PANEL_BG, fg="#546E7A", font=FONT_SUB).pack(padx=24, anchor="w")
 
-        # Populate tree
-        self._campaign_tree.delete(*self._campaign_tree.get_children())
-        runs = cm.all_runs()
-        for run in reversed(runs):  # Most recent first
-            self._campaign_tree.insert("", "end", values=(
-                run.season,
-                run.checkpoint_type,
-                run.timestamp,
-                f"{run.students_processed:,}",
-                f"{run.students_assigned:,}",
-                f"{run.students_unmatched:,}",
-                f"{run.assigned_total:,}",
+        f = tk.Frame(dialog, bg=PANEL_BG)
+        f.pack(fill="x", padx=24, pady=(20, 0))
+        tk.Label(f, text="Semester Name:", bg=PANEL_BG, fg=TEXT_FG,
+                 font=FONT_MAIN, width=16, anchor="w").pack(side="left")
+        name_var = tk.StringVar(value="")
+        entry = tk.Entry(f, textvariable=name_var, font=FONT_BOLD, width=26,
+                         relief="flat", bg="white",
+                         highlightthickness=1, highlightbackground="#B0BEC5",
+                         insertbackground=TEXT_FG)
+        entry.pack(side="left", ipady=5)
+        entry.focus()
+
+        err_lbl = tk.Label(dialog, text="", bg=PANEL_BG, fg="#C62828", font=FONT_SUB)
+        err_lbl.pack(padx=24, anchor="w")
+
+        bf = tk.Frame(dialog, bg=PANEL_BG)
+        bf.pack(fill="x", padx=24, pady=(12, 0))
+
+        def on_create():
+            name = name_var.get().strip()
+            if not name:
+                err_lbl.config(text="Please enter a semester name.")
+                return
+            try:
+                sm = SemesterManager()
+                sem = sm.create_semester(name)
+                # Set season var on main window
+                if hasattr(self, "_campaign_season_var"):
+                    self._campaign_season_var.set(name)
+                dialog.destroy()
+                self._refresh_semester_tab()
+                self._update_semester_header(sem)
+            except ValueError as e:
+                err_lbl.config(text=str(e))
+
+        def on_skip():
+            dialog.destroy()
+
+        tk.Button(bf, text="🎓  Create Semester", font=FONT_BOLD,
+                  bg=BTN_PRIMARY, fg="white", relief="flat",
+                  padx=16, pady=8, cursor="hand2",
+                  command=on_create).pack(side="left", padx=(0, 8))
+
+        if on_startup:
+            tk.Button(bf, text="Skip for now", font=FONT_MAIN,
+                      bg="#78909C", fg="white", relief="flat",
+                      padx=12, pady=8, cursor="hand2",
+                      command=on_skip).pack(side="left")
+
+        dialog.wait_window()
+
+    def _refresh_semester_tab(self):
+        """Reload semester data and update the display."""
+        sm = SemesterManager()
+        sem = sm.active_semester()
+
+        # Update header
+        if sem:
+            self._sem_name_label.config(text=sem.name, fg=BTN_PRIMARY)
+            self._sem_status_label.config(
+                text=f"● Active",
+                fg="#2E7D32"
+            )
+            if hasattr(self, "_campaign_season_var"):
+                self._campaign_season_var.set(sem.name)
+        else:
+            self._sem_name_label.config(text="No Active Semester", fg="#78909C")
+            self._sem_status_label.config(text="")
+
+        # Update checkpoint cards
+        from utils.config import (SEMESTER_CHECKPOINTS,
+                                  CHECKPOINT_STATUS_NOT_STARTED,
+                                  CHECKPOINT_STATUS_IN_PROGRESS,
+                                  CHECKPOINT_STATUS_COMPLETE)
+
+        STATUS_COLORS = {
+            CHECKPOINT_STATUS_NOT_STARTED: "#78909C",
+            CHECKPOINT_STATUS_IN_PROGRESS: "#E65100",
+            CHECKPOINT_STATUS_COMPLETE:    "#2E7D32",
+        }
+        STATUS_ICONS = {
+            CHECKPOINT_STATUS_NOT_STARTED: "○",
+            CHECKPOINT_STATUS_IN_PROGRESS: "◉",
+            CHECKPOINT_STATUS_COMPLETE:    "✓",
+        }
+
+        for cp_name, widgets in self._checkpoint_frames.items():
+            if sem:
+                cp = sem.get_checkpoint(cp_name)
+                icon = STATUS_ICONS.get(cp.status, "○")
+                color = STATUS_COLORS.get(cp.status, "#78909C")
+                widgets["status"].config(
+                    text=f"{icon}  {cp.status}", fg=color
+                )
+                if cp.run_count > 0:
+                    widgets["runs"].config(text=f"Runs: {cp.run_count}")
+                    widgets["students"].config(
+                        text=f"Assigned: {cp.students_assigned:,} | "
+                             f"Unmatched: {cp.students_unmatched:,}"
+                    )
+                else:
+                    widgets["runs"].config(text="No runs yet")
+                    widgets["students"].config(text="")
+            else:
+                widgets["status"].config(text="○  Not Started", fg="#78909C")
+                widgets["runs"].config(text="")
+                widgets["students"].config(text="")
+
+        # Update history tree
+        self._history_tree.delete(*self._history_tree.get_children())
+        for s in sm.all_semesters():
+            def cp_val(name):
+                cp = s.get_checkpoint(name)
+                if cp.status == CHECKPOINT_STATUS_COMPLETE:
+                    return f"✓ {cp.students_assigned:,}"
+                elif cp.run_count > 0:
+                    return f"◉ {cp.students_assigned:,}"
+                return "—"
+
+            tag = "active" if s.status == SEMESTER_STATUS_ACTIVE else "done"
+            self._history_tree.insert("", "end", tags=(tag,), values=(
+                s.name,
+                s.status,
+                s.created[:10] if s.created else "",
+                s.completed[:10] if s.completed else "",
+                cp_val("Progress Report 1"),
+                cp_val("Midterm"),
+                cp_val("Progress Report 2"),
+                Path(s.master_report).name if s.master_report else "—",
             ))
 
-        # Alternate row colors
-        for i, item in enumerate(self._campaign_tree.get_children()):
-            tag = "even" if i % 2 == 0 else "odd"
-            self._campaign_tree.item(item, tags=(tag,))
-        self._campaign_tree.tag_configure("even", background="#F4F6FB")
-        self._campaign_tree.tag_configure("odd",  background="#FFFFFF")
+        self._history_tree.tag_configure("active", background="#E3F2FD")
+        self._history_tree.tag_configure("done",   background="#F4F6FB")
 
-        # Repeat students
-        repeats = cm.repeat_students(min_appearances=2)
-        if repeats:
-            total_repeats = len(repeats)
-            max_count = max(repeats.values())
-            self._repeat_label.config(
-                text=f"{total_repeats:,} students have appeared in more than one run "
-                     f"(max: {max_count} appearances). "
-                     f"These students may need elevated intervention.",
-                fg=WARNING_COLOR,
-            )
-        else:
-            self._repeat_label.config(
-                text="No repeat at-risk students detected across runs.",
-                fg="#2E7D32",
-            )
+        # Pre-fill file pickers if semester has saved paths
+        if sem:
+            if sem.contact_report:
+                if hasattr(self, "_contact_picker") and not self._contact_picker.path:
+                    self._contact_picker.path = sem.contact_report
+                if hasattr(self, "_midterm_contact_picker") and not self._midterm_contact_picker.path:
+                    self._midterm_contact_picker.path = sem.contact_report
+            if sem.control_file:
+                if hasattr(self, "_control_picker") and not self._control_picker.path:
+                    self._control_picker.path = sem.control_file
+                if hasattr(self, "_midterm_control_picker") and not self._midterm_control_picker.path:
+                    self._midterm_control_picker.path = sem.control_file
+            if sem.group_folder:
+                if hasattr(self, "_group_dir_picker") and not self._group_dir_picker.path:
+                    self._group_dir_picker.path = sem.group_folder
+                if hasattr(self, "_midterm_group_dir_picker") and not self._midterm_group_dir_picker.path:
+                    self._midterm_group_dir_picker.path = sem.group_folder
 
-    def _on_reset_season(self):
-        """Clear assigned_students.txt after confirmation."""
-        season = self._campaign_season_var.get().strip() or "current season"
-        if not messagebox.askyesno(
-            "Reset Season",
-            f"This will clear the assigned students list for '{season}'.\n\n"
-            "All students will be eligible for assignment on the next run.\n\n"
-            "This cannot be undone. Continue?",
-        ):
+            # Auto-populate trend/master report pickers
+            output_files = sem.output_files()
+            cp_to_picker = {
+                "Progress Report 1": "_trend_pr1_picker",
+                "Midterm":           "_trend_mid_picker",
+                "Progress Report 2": "_trend_pr2_picker",
+            }
+            for cp_name, picker_attr in cp_to_picker.items():
+                if cp_name in output_files and hasattr(self, picker_attr):
+                    picker = getattr(self, picker_attr)
+                    if not picker.path:
+                        picker.path = output_files[cp_name]
+            # Same for master report pickers
+            master_cp_to_picker = {
+                "Progress Report 1": "_master_pr1_picker",
+                "Midterm":           "_master_mid_picker",
+                "Progress Report 2": "_master_pr2_picker",
+            }
+            for cp_name, picker_attr in master_cp_to_picker.items():
+                if cp_name in output_files and hasattr(self, picker_attr):
+                    picker = getattr(self, picker_attr)
+                    if not picker.path:
+                        picker.path = output_files[cp_name]
+
+    def _update_semester_header(self, sem):
+        """Quick update of just the header label."""
+        if sem and hasattr(self, "_sem_name_label"):
+            self._sem_name_label.config(text=sem.name, fg=BTN_PRIMARY)
+            self._sem_status_label.config(text="● Active", fg="#2E7D32")
+
+    def _on_new_semester(self):
+        sm = SemesterManager()
+        if sm.has_active_semester():
+            messagebox.showwarning("Active Semester Exists",
+                f"You already have an active semester: "
+                f"'{sm.active_semester().name}'.\n\n"
+                "Complete or reset it before starting a new one.")
             return
-        cm = CampaignManager()
-        cleared = cm.reset_season(season)
-        self._refresh_campaign_tab()
-        messagebox.showinfo(
-            "Season Reset",
-            f"✅ Cleared {cleared:,} student IDs from the assigned list.\n"
-            f"Ready to start a new season.",
-        )
+        self._show_new_semester_dialog()
+
+    def _on_mark_checkpoint_complete(self, checkpoint_name: str):
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            messagebox.showwarning("No Active Semester",
+                "Start a semester first.")
+            return
+        cp = sm.active_semester().get_checkpoint(checkpoint_name)
+        if cp.run_count == 0:
+            if not messagebox.askyesno("Mark Complete",
+                f"'{checkpoint_name}' has no runs recorded.\n"
+                "Mark it complete anyway?"):
+                return
+        sm.mark_checkpoint_complete(checkpoint_name)
+        self._refresh_semester_tab()
+
+    def _on_reset_checkpoint(self, checkpoint_name: str):
+        if not messagebox.askyesno("Reset Checkpoint",
+            f"Reset '{checkpoint_name}'?\n\n"
+            "This will clear the assigned students list so all students "
+            "are eligible again for this checkpoint.\n\n"
+            "This cannot be undone."):
+            return
+        sm = SemesterManager()
+        cleared = sm.reset_checkpoint(checkpoint_name)
+        self._refresh_semester_tab()
+        messagebox.showinfo("Checkpoint Reset",
+            f"✅ '{checkpoint_name}' reset.\n"
+            f"Cleared {cleared:,} student IDs from the assigned list.")
+
+    def _on_complete_semester(self):
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            messagebox.showwarning("No Active Semester", "No active semester to complete.")
+            return
+        sem = sm.active_semester()
+        if not messagebox.askyesno("Complete Semester",
+            f"Complete semester '{sem.name}'?\n\n"
+            "This will:\n"
+            "  • Generate the Master Season Report\n"
+            "  • Clear the assigned students list\n"
+            "  • Move semester to history\n\n"
+            "This cannot be undone."):
+            return
+
+        # Generate master report first
+        output_files = sem.output_files()
+        out_path = None
+        if output_files:
+            try:
+                from datetime import datetime
+                from utils.config import LOG_DATE_FORMAT
+                from processors.season_report import SeasonReportGenerator
+                timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
+                season_label = sem.name.replace(" ", "_")
+                out_path = OUTPUT_DIR / f"MasterReport_{season_label}_{timestamp}.xlsx"
+                OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+                gen = SeasonReportGenerator()
+                gen.generate(
+                    pr1_path=Path(output_files["Progress Report 1"])
+                             if "Progress Report 1" in output_files else None,
+                    mid_path=Path(output_files["Midterm"])
+                             if "Midterm" in output_files else None,
+                    pr2_path=Path(output_files["Progress Report 2"])
+                             if "Progress Report 2" in output_files else None,
+                    output_path=out_path,
+                    season_name=sem.name,
+                )
+            except Exception as exc:
+                if not messagebox.askyesno("Report Error",
+                    f"Could not generate master report:\n{exc}\n\n"
+                    "Complete semester anyway?"):
+                    return
+
+        sm.complete_semester(str(out_path) if out_path else "")
+        self._refresh_semester_tab()
+
+        msg = f"✅ Semester '{sem.name}' completed!"
+        if out_path:
+            msg += f"\n\nMaster Report:\n{out_path}"
+        messagebox.showinfo("Semester Complete", msg)
+
+    def _on_reset_semester(self):
+        sm = SemesterManager()
+        if not sm.has_active_semester():
+            messagebox.showwarning("No Active Semester", "No active semester to reset.")
+            return
+        sem = sm.active_semester()
+        if not messagebox.askyesno("Reset Semester",
+            f"Reset semester '{sem.name}'?\n\n"
+            "This will clear ALL progress for this semester and "
+            "remove it from the active view (history preserved).\n\n"
+            "This cannot be undone."):
+            return
+        sm.reset_semester()
+        self._refresh_semester_tab()
+        messagebox.showinfo("Semester Reset",
+            f"Semester '{sem.name}' has been reset.\n"
+            "Start a new semester when ready.")
+
 
     def _build_settings_tab(self):
         """Build the Settings tab — column mapping editor."""

@@ -344,3 +344,18 @@ CAMPAIGNS_FILENAME = "campaigns.json"
 CAMPAIGNS_PATH = BASE_DIR / CAMPAIGNS_FILENAME
 
 CHECKPOINT_TYPES = ["Progress Report 1", "Midterm", "Progress Report 2"]
+
+# ---------------------------------------------------------------------------
+# Semester Manager
+# ---------------------------------------------------------------------------
+SEMESTERS_FILENAME = "semesters.json"
+SEMESTERS_PATH = BASE_DIR / SEMESTERS_FILENAME
+
+SEMESTER_CHECKPOINTS = ["Progress Report 1", "Midterm", "Progress Report 2"]
+
+CHECKPOINT_STATUS_NOT_STARTED = "Not Started"
+CHECKPOINT_STATUS_IN_PROGRESS = "In Progress"
+CHECKPOINT_STATUS_COMPLETE    = "Complete"
+
+SEMESTER_STATUS_ACTIVE   = "Active"
+SEMESTER_STATUS_COMPLETE = "Complete"
