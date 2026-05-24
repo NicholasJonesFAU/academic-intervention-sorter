@@ -24,6 +24,18 @@ from gui_campaign_tab import build_campaign_tab
 from gui_settings_tab import build_settings_tab
 from gui_help_tab import build_help_tab
 from gui_midterm_actions import run_midterm_sort, handle_midterm_complete, handle_midterm_error
+from gui_progress_actions import (
+    on_run_progress,
+    on_validate_progress,
+    on_prerun_check_progress,
+    show_precheck_results,
+    on_clear_progress,
+    collect_progress_inputs,
+    start_progress_processing,
+    on_progress_complete,
+    on_progress_error,
+    set_progress_buttons_state,
+)
 
 # Ensure the app root is on sys.path
 sys .path .insert (0 ,str (Path (__file__ ).parent ))
@@ -260,287 +272,29 @@ class InterventionSorterApp (tk .Tk ):
     def _ensure_season_set(self) -> bool:
         return ensure_season_set(self)
 
-    def _on_run (self ):
-        if self ._processing :
-            return 
-        if not self ._ensure_season_set ():
-            return 
-        inputs =self ._collect_inputs ()
-        if inputs is None :
-            return 
-            # Group selection dialog
-        if self ._control_picker .path and self ._group_dir_picker .path :
-            checkpoint =(self ._checkpoint_type_var .get ()
-            if hasattr (self ,"_checkpoint_type_var")else "Progress Report 1")
-            proceed ,skip_groups =self ._show_group_selection_dialog (
-            self ._control_picker .path ,
-            self ._group_dir_picker .path ,
-            checkpoint ,
-            )
-            if not proceed :
-                return 
-            inputs .skip_groups =skip_groups 
-        self ._start_processing (inputs ,validate_only =False )
-
-    def _on_validate (self ):
-        if self ._processing :
-            return 
-        inputs =self ._collect_inputs ()
-        if inputs is None :
-            return 
-        self ._start_processing (inputs ,validate_only =True )
-
-    def _on_prerun_check (self ):
-        """Run pre-flight data quality checks without a full pipeline run."""
-        paths ={
-        "Progress Report":self ._progress_picker .path ,
-        "Contact Report":self ._contact_picker .path ,
-        "Group Control":self ._control_picker .path ,
-        "Group Folder":self ._group_dir_picker .path ,
-        }
-        missing =[k for k ,v in paths .items ()if not v ]
-        if missing :
-            messagebox .showerror ("Missing Files",
-            "Please select files first:\n"+"\n".join (f"  • {m }"for m in missing ))
-            return 
-
-        self ._log ("="*55 ,"info")
-        self ._log ("PRE-RUN DATA QUALITY CHECK","step")
-        self ._log ("="*55 ,"info")
-
-        import threading 
-        def _worker ():
-            checker =PreRunChecker ()
-            all_results =[]
-            progress_ids =None 
-
-            # Check progress report
-            self .after (0 ,self ._log ,"Checking progress report...","step")
-            pr_results =checker .check_progress_report (
-            Path (paths ["Progress Report"])
-            )
-            all_results .extend (pr_results )
-
-            # Extract at-risk IDs for cross-checks
-            try :
-                from utils .settings_manager import get_settings 
-                from utils .normalization import normalize_student_id_series ,normalize_at_risk_series 
-                import pandas as pd 
-                col =get_settings ().progress_report_map 
-                df =pd .read_csv (paths ["Progress Report"],dtype =str ,keep_default_na =False )if paths ["Progress Report"].endswith (".csv")else pd .read_excel (paths ["Progress Report"],dtype =str ,
-                keep_default_na =False ,engine ="openpyxl")
-                df .columns =[str (c ).strip ()for c in df .columns ]
-                if col ["at_risk"]in df .columns and col ["student_id"]in df .columns :
-                    at_risk_mask =normalize_at_risk_series (df [col ["at_risk"]])
-                    progress_ids =set (
-                    normalize_student_id_series (df [at_risk_mask ][col ["student_id"]])
-                    .replace ("",pd .NA ).dropna ()
-                    )
-            except Exception :
-                pass 
-
-                # Check contact report
-            self .after (0 ,self ._log ,"Checking contact report...","step")
-            cr_results =checker .check_contact_report (
-            Path (paths ["Contact Report"]),progress_ids 
-            )
-            all_results .extend (cr_results )
-
-            # Check group files
-            self .after (0 ,self ._log ,"Checking group files...","step")
-            gf_results =checker .check_group_files (
-            Path (paths ["Group Control"]),
-            Path (paths ["Group Folder"]),
-            progress_ids ,
-            )
-            all_results .extend (gf_results )
-
-            self .after (0 ,self ._show_precheck_results ,all_results )
-
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _show_precheck_results (self ,results ):
-        """Display pre-run check results in the log and a summary popup."""
-        errors =[r for r in results if r .level =="error"]
-        warnings =[r for r in results if r .level =="warning"]
-        infos =[r for r in results if r .level =="info"]
-
-        for r in infos :
-            self ._log (f"  ℹ️  {r .message }","info")
-        for r in warnings :
-            self ._log (f"  ⚠️  {r .message }","warning")
-        for r in errors :
-            self ._log (f"  ❌  {r .message }","error")
-
-        if errors :
-            self ._log ("\n❌ Pre-run check found errors — fix before running.","error")
-            messagebox .showerror ("Pre-Run Check Failed",
-            f"Found {len (errors )} error(s) and {len (warnings )} warning(s).\n\n"
-            +"\n".join (f"❌ {r .message [:120 ]}"for r in errors [:5 ]))
-        elif warnings :
-            self ._log (f"\n⚠️  Pre-run check passed with {len (warnings )} warning(s).","warning")
-            messagebox .showwarning ("Pre-Run Check — Warnings",
-            f"No errors found but {len (warnings )} warning(s):\n\n"
-            +"\n".join (f"⚠️ {r .message [:120 ]}"for r in warnings [:5 ])
-            +"\n\nYou can still run — check warnings in the log.")
-        else :
-            self ._log ("\n✅ Pre-run check passed — all files look good!","success")
-            messagebox .showinfo ("Pre-Run Check Passed",
-            "✅ All files validated successfully!\n\nReady to run.")
-
-    def _on_clear (self ):
-        self ._log_box .config (state ="normal")
-        self ._log_box .delete ("1.0","end")
-        self ._log_box .config (state ="disabled")
-        self ._progress_var .set (0 )
-        self ._progress_bar .stop ()
-
-    def _collect_inputs (self )->PipelineInputs |None :
-        """
-        Gather file paths from pickers and validate they're not empty.
-
-        When the active semester has groups configured, the control file and
-        group folder are optional — semester groups take precedence.
-        """
-        semester_groups =SemesterManager ().get_groups ()
-        using_semester_groups =bool (semester_groups )
-
-        errors =[]
-        always_required ={
-        "Progress Report":self ._progress_picker .path ,
-        "Contact Report":self ._contact_picker .path ,
-        "Output Folder":self ._output_picker .path ,
-        }
-        for label ,val in always_required .items ():
-            if not val :
-                errors .append (f"• {label } is required.")
-
-                # Control file + group dir only required if no semester groups set
-        if not using_semester_groups :
-            if not self ._control_picker .path :
-                errors .append ("• Group Control File is required (no semester groups configured).")
-            if not self ._group_dir_picker .path :
-                errors .append ("• Group Files Folder is required (no semester groups configured).")
-
-        if errors :
-            messagebox .showerror (
-            "Missing Inputs",
-            "Please provide all required files:\n\n"+"\n".join (errors ),
-            )
-            return None 
-
-        season =self ._campaign_season_var .get ().strip ()if hasattr (self ,"_campaign_season_var")else ""
-        checkpoint =self ._checkpoint_type_var .get ()if hasattr (self ,"_checkpoint_type_var")else "Progress Report"
-
-        # Provide dummy Paths for control_file/group_dir when not used
-        control_file =Path (self ._control_picker .path )if self ._control_picker .path else Path (".")
-        group_dir =Path (self ._group_dir_picker .path )if self ._group_dir_picker .path else Path (".")
-
-        return PipelineInputs (
-        progress_report =Path (always_required ["Progress Report"]),
-        contact_report =Path (always_required ["Contact Report"]),
-        control_file =control_file ,
-        group_dir =group_dir ,
-        output_dir =Path (always_required ["Output Folder"]),
-        exclude_previous =self ._exclude_var .get (),
-        season =season ,
-        checkpoint_type =checkpoint ,
-        semester_groups =semester_groups if using_semester_groups else None ,
-        )
-
-    def _start_processing (self ,inputs :PipelineInputs ,validate_only :bool ):
-        """Run the pipeline in a background thread to keep the GUI responsive."""
-        self ._processing =True 
-        self ._set_buttons_state ("disabled")
-        self ._progress_bar .start (12 )
-        self ._log ("="*60 ,"info")
-        self ._log (
-        "VALIDATION CHECK"if validate_only else "STARTING FULL PROCESSING",
-        "step",
-        )
-        self ._log ("="*60 ,"info")
-
-        def _worker ():
-            try :
-                controller =PipelineController (
-                progress_callback =lambda msg :self .after (0 ,self ._log ,msg ,"step")
-                )
-                if validate_only :
-                    result =controller .validate_only (inputs )
-                else :
-                    result =controller .run (inputs )
-                self .after (0 ,self ._on_complete ,result )
-            except Exception :
-                err =traceback .format_exc ()
-                self .after (0 ,self ._on_error ,err )
-
-        threading .Thread (target =_worker ,daemon =True ).start ()
-
-    def _on_complete (self ,result :PipelineResult ):
-        self ._processing =False 
-        self ._set_buttons_state ("normal")
-        self ._progress_bar .stop ()
-        self ._progress_var .set (100 if result .success else 0 )
-
-        if result .success :
-            self ._log ("\n✅ "+result .message ,"success")
-            if not result .validation_only and result .output_path :
-                self ._log (f"\n📁 Output: {result .output_path }","success")
-                # Ask if they want to open the file
-                if messagebox .askyesno (
-                "Processing Complete",
-                f"Processing completed successfully!\n\n"
-                f"Output file:\n{result .output_path }\n\n"
-                f"{result .message }\n\n"
-                f"Open the output file now?",
-                ):
-                    import subprocess ,sys 
-                    try :
-                        if sys .platform =="win32":
-                            subprocess .Popen (["explorer",str (result .output_path )])
-                        elif sys .platform =="darwin":
-                            subprocess .Popen (["open",str (result .output_path )])
-                        else :
-                            subprocess .Popen (["xdg-open",str (result .output_path )])
-                    except Exception :
-                        pass 
-            elif result .validation_only :
-                messagebox .showinfo (
-                "Validation Passed",
-                f"✅ All validations passed!\n\n{result .message }",
-                )
-        else :
-            self ._log ("\n❌ "+result .message ,"error")
-            for err in result .errors :
-                self ._log (f"   {err }","error")
-            if result .warnings :
-                for w in result .warnings :
-                    self ._log (f"   {w }","warning")
-            messagebox .showerror (
-            "Processing Failed"if not result .validation_only else "Validation Issues",
-            f"{'❌ Processing failed:'if not result .validation_only else '⚠️ Validation issues found:'}\n\n"
-            +result .message 
-            +("\n\nDetails:\n"+"\n".join (result .errors [:5 ])if result .errors else ""),
-            )
-
-    def _on_error (self ,error_text :str ):
-        self ._processing =False 
-        self ._set_buttons_state ("normal")
-        self ._progress_bar .stop ()
-        self ._log ("\n❌ Unexpected error:\n"+error_text ,"error")
-        messagebox .showerror ("Unexpected Error",f"An unexpected error occurred:\n\n{error_text [:800 ]}")
-
-        # ------------------------------------------------------------------
-        # Helpers
-        # ------------------------------------------------------------------
-
+    def _on_run(self):
+        return on_run_progress(self)
+    def _on_validate(self):
+        return on_validate_progress(self)
+    def _on_prerun_check(self):
+        return on_prerun_check_progress(self)
+    def _show_precheck_results(self, results):
+        return show_precheck_results(self, results)
+    def _on_clear(self):
+        return on_clear_progress(self)
+    def _collect_inputs(self):
+        return collect_progress_inputs(self)
+    def _start_processing(self, inputs, validate_only):
+        return start_progress_processing(self, inputs, validate_only)
+    def _on_complete(self, result):
+        return on_progress_complete(self, result)
+    def _on_error(self, error_text: str):
+        return on_progress_error(self, error_text)
     def _log (self ,message :str ,tag :str ="info"):
         append_log(self._log_box, message, tag)
 
-    def _set_buttons_state (self ,state :str ):
-        for btn in [self ._run_btn ,self ._validate_btn ,self ._clear_btn ]:
-            btn .config (state =state )
-
+    def _set_buttons_state(self, state: str):
+        return set_progress_buttons_state(self, state)
     def _set_defaults (self ):
         """Pre-fill output folder to the default output directory."""
         self ._output_picker .path =str (OUTPUT_DIR )
