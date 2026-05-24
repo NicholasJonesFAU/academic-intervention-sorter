@@ -340,6 +340,57 @@ class InterventionSorterApp(tk.Tk):
         logger.info("GUI initialized: %s v%s", APP_NAME, APP_VERSION)
 
     # ------------------------------------------------------------------
+    # Scroll area helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_scrollable_tab(parent: tk.Widget, padx: int = 24, pady: int = 16):
+        """
+        Wrap a tab in a vertically scrollable canvas.
+
+        Returns (inner_frame, activate_fn, deactivate_fn) where:
+          inner_frame   — pack/grid content into this
+          activate_fn   — call to enable mousewheel scroll (bind to canvas <Enter>)
+          deactivate_fn — call to disable mousewheel scroll (bind to canvas <Leave>
+                          and also to any ScrolledText <Enter> inside the tab)
+
+        Usage:
+            inner, on, off = self._make_scrollable_tab(tab)
+            # ... build content inside inner ...
+            self._log_box.bind("<Enter>", lambda e: off())
+            self._log_box.bind("<Leave>", lambda e: on())
+        """
+        canvas = tk.Canvas(parent, bg=PANEL_BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = tk.Frame(canvas, bg=PANEL_BG, padx=padx, pady=pady)
+        win_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _resize(e=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(win_id, width=canvas.winfo_width())
+
+        inner.bind("<Configure>", _resize)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width))
+
+        def _wheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+        def activate(e=None):
+            canvas.bind_all("<MouseWheel>", _wheel)
+
+        def deactivate(e=None):
+            canvas.unbind_all("<MouseWheel>")
+
+        canvas.bind("<Enter>", activate)
+        canvas.bind("<Leave>", deactivate)
+
+        return inner, activate, deactivate
+
+    # ------------------------------------------------------------------
     # UI Construction
     # ------------------------------------------------------------------
 
@@ -458,8 +509,7 @@ class InterventionSorterApp(tk.Tk):
         notebook.add(tab7, text="  Help  ")
         self._help_tab = tab7
 
-        content = tk.Frame(tab1, bg=PANEL_BG, padx=28, pady=18)
-        content.pack(fill="both", expand=True)
+        content, _wheel_on, _wheel_off = self._make_scrollable_tab(tab1, padx=28, pady=18)
 
         # ── File pickers ───────────────────────────────────────────
         section_label(content, "Input Files").pack(fill="x", pady=(0, 10))
@@ -582,6 +632,8 @@ class InterventionSorterApp(tk.Tk):
         )
         self._log_box.pack(fill="both", expand=True)
         self._log_box.config(state="disabled")
+        self._log_box.bind("<Enter>", _wheel_off)
+        self._log_box.bind("<Leave>", _wheel_on)
 
         # Tag styles for log
         self._log_box.tag_config("success", foreground="#68D391")
@@ -1133,8 +1185,7 @@ class InterventionSorterApp(tk.Tk):
             return
         tab2 = notebook.winfo_children()[1]
 
-        content2 = tk.Frame(tab2, bg=PANEL_BG, padx=24, pady=16)
-        content2.pack(fill="both", expand=True)
+        content2, _wheel_on2, _wheel_off2 = self._make_scrollable_tab(tab2)
 
         section_label(content2, "Input Files").pack(fill="x", pady=(0, 8))
 
@@ -1189,6 +1240,8 @@ class InterventionSorterApp(tk.Tk):
         )
         self._report_log_box.pack(fill="both", expand=True)
         self._report_log_box.config(state="disabled")
+        self._report_log_box.bind("<Enter>", _wheel_off2)
+        self._report_log_box.bind("<Leave>", _wheel_on2)
         self._report_log_box.tag_config("success", foreground="#4CAF50")
         self._report_log_box.tag_config("error",   foreground="#F44336")
         self._report_log_box.tag_config("step",    foreground="#CE93D8")
@@ -1279,8 +1332,7 @@ class InterventionSorterApp(tk.Tk):
     def _build_midterm_tab(self):
         """Build the Midterm Sorter tab UI."""
         tab = self._midterm_tab
-        outer = tk.Frame(tab, bg=PANEL_BG, padx=24, pady=16)
-        outer.pack(fill="both", expand=True)
+        outer, _wheel_on3, _wheel_off3 = self._make_scrollable_tab(tab)
 
         section_label(outer, "Input Files").pack(fill="x", pady=(0, 8))
 
@@ -1371,6 +1423,8 @@ class InterventionSorterApp(tk.Tk):
         )
         self._midterm_log_box.pack(fill="both", expand=True)
         self._midterm_log_box.config(state="disabled")
+        self._midterm_log_box.bind("<Enter>", _wheel_off3)
+        self._midterm_log_box.bind("<Leave>", _wheel_on3)
         self._midterm_log_box.tag_config("success", foreground="#4CAF50")
         self._midterm_log_box.tag_config("error",   foreground="#F44336")
         self._midterm_log_box.tag_config("warning", foreground="#FF9800")
@@ -1504,8 +1558,7 @@ class InterventionSorterApp(tk.Tk):
 
     def _build_trend_tab(self):
         """Build the Campaign Trend Report tab."""
-        outer = tk.Frame(self._trend_tab, bg=PANEL_BG, padx=24, pady=16)
-        outer.pack(fill="both", expand=True)
+        outer, _wheel_on4, _wheel_off4 = self._make_scrollable_tab(self._trend_tab)
 
         # Description
         tk.Label(
@@ -1658,6 +1711,8 @@ class InterventionSorterApp(tk.Tk):
         )
         self._trend_log_box.pack(fill="both", expand=True)
         self._trend_log_box.config(state="disabled")
+        self._trend_log_box.bind("<Enter>", _wheel_off4)
+        self._trend_log_box.bind("<Leave>", _wheel_on4)
         self._trend_log_box.tag_config("success", foreground="#4CAF50")
         self._trend_log_box.tag_config("error",   foreground="#F44336")
         self._trend_log_box.tag_config("info",    foreground="#90CAF9")
@@ -1835,8 +1890,7 @@ class InterventionSorterApp(tk.Tk):
     def _build_campaign_tab(self):
         """Build the redesigned Campaigns / Semester Manager tab."""
         tab = self._campaign_tab
-        outer = tk.Frame(tab, bg=PANEL_BG, padx=24, pady=16)
-        outer.pack(fill="both", expand=True)
+        outer, _wheel_on5, _wheel_off5 = self._make_scrollable_tab(tab)
 
         # ── Active semester header ────────────────────────────────
         self._sem_header_frame = tk.Frame(outer, bg=PANEL_BG)
@@ -2015,6 +2069,8 @@ class InterventionSorterApp(tk.Tk):
         self._history_tree.configure(yscrollcommand=vsb.set)
         self._history_tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
+        self._history_tree.bind("<Enter>", _wheel_off5)
+        self._history_tree.bind("<Leave>", _wheel_on5)
 
         # Initial refresh
         self._refresh_semester_tab()
@@ -2582,9 +2638,11 @@ class InterventionSorterApp(tk.Tk):
         inner.bind("<Configure>", on_configure)
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
 
-        def on_mousewheel(e):
+        def _settings_wheel(e):
             canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _settings_wheel))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+        inner.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _settings_wheel))
 
         self._setting_vars = {}
 
@@ -2720,7 +2778,12 @@ class InterventionSorterApp(tk.Tk):
         canvas_window = canvas.create_window((0, 0), window=inner, anchor="nw")
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
-        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+
+        def _help_wheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _help_wheel))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+        inner.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _help_wheel))
 
         def section(title, color=NAVY):
             tk.Label(inner, text=title, bg=color, fg="white",
