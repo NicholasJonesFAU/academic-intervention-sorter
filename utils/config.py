@@ -421,26 +421,9 @@ MIDTERM_AT_RISK_GRADES = {
     "c-", "d+", "d", "d-", "f",
 }
 
-# Output columns for midterm tabs
-MIDTERM_OUTPUT_COLUMNS = [
-    "Student Name",
-    "Student ID",
-    "Phone Number",
-    "Email",
-    "College",
-    "Major",
-    "Classification",
-    "Risk Course Count",
-    "Course Numbers",
-    "Courses",
-    "Grades",
-    "Matched Group",
-    "Match Source",
-    "Processing Notes",
-]
-
-# Output filename pattern for midterm
+# Output filename patterns for midterm — same outreach schema as progress reports
 MIDTERM_OUTPUT_FILENAME_PATTERN = "ProgressReport_Midterm_{timestamp}.xlsx"
+MIDTERM_SAS_OUTPUT_FILENAME_PATTERN = "ProgressReport_Midterm_SAS_{timestamp}.xlsx"
 
 # ---------------------------------------------------------------------------
 # Trend / Campaign Cycle Report

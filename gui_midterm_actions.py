@@ -50,6 +50,7 @@ def run_midterm_sort(app):
     season = app._campaign_season_var.get().strip() if hasattr(app, "_campaign_season_var") else ""
     control_file = Path(app._midterm_control_picker.path) if app._midterm_control_picker.path else Path(".")
     group_dir = Path(app._midterm_group_dir_picker.path) if app._midterm_group_dir_picker.path else Path(".")
+    registration_path = app._midterm_registration_picker.path
 
     inputs = MidtermPipelineInputs(
         midterm_file=Path(always_required["Midterm Grade File"]),
@@ -61,6 +62,7 @@ def run_midterm_sort(app):
         season=season,
         checkpoint_type="Midterm",
         semester_groups=semester_groups if using_semester_groups else None,
+        registration_report=Path(registration_path) if registration_path else None,
     )
 
     proceed, skip_groups = app._show_group_selection_dialog(
@@ -102,12 +104,18 @@ def handle_midterm_complete(app, result):
 
     if result.success:
         app._midterm_log_write("\n✅ " + result.message, "success")
-        app._midterm_log_write("📁 Output: " + str(result.output_path), "success")
+        app._midterm_log_write("📁 Other offices: " + str(result.output_path), "success")
+        sas_path = getattr(result, "sas_output_path", None)
+        if sas_path:
+            app._midterm_log_write("📁 SAS: " + str(sas_path), "success")
         if hasattr(app, "_refresh_campaign_tab"):
             app._refresh_campaign_tab()
+        files_text = "Other offices:\n" + str(result.output_path)
+        if sas_path:
+            files_text += "\n\nSAS:\n" + str(sas_path)
         messagebox.showinfo(
             "Midterm Sort Complete",
-            "✅ Midterm sort completed!\n\n" + result.message + "\n\nOutput:\n" + str(result.output_path),
+            "✅ Midterm sort completed!\n\n" + result.message + "\n\n" + files_text,
         )
     else:
         app._midterm_log_write("\n❌ " + result.message, "error")

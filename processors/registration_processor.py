@@ -158,7 +158,8 @@ class RegistrationProcessor:
                 "RegistrationProcessor: No registration data loaded. Skipping merge."
             )
             for col_name in REGISTRATION_COLUMNS:
-                students_df[col_name] = ""
+                if col_name not in students_df.columns:
+                    students_df[col_name] = ""
             return students_df
 
         result = students_df.merge(
@@ -168,8 +169,18 @@ class RegistrationProcessor:
             suffixes=("", "_registration"),
         )
 
+        # The midterm file supplies its own College/Major/Classification, so a
+        # column the caller already filled wins; registration only fills blanks.
         for col_name in REGISTRATION_COLUMNS:
-            result[col_name] = result[col_name].fillna("")
+            incoming = f"{col_name}_registration"
+            if incoming in result.columns:
+                existing = result[col_name].fillna("").astype(str).str.strip()
+                result[col_name] = existing.where(
+                    existing != "", result[incoming].fillna("")
+                )
+                result = result.drop(columns=[incoming])
+            else:
+                result[col_name] = result[col_name].fillna("")
 
         logger.info(
             "RegistrationProcessor: Merge complete. %d students, %d with registration rows.",

@@ -6,8 +6,9 @@ Steps:
   2. Load + filter midterm file (C- and below only)
   3. Aggregate to one row per student
   4. Merge contact info
-  5. Group matching (same first-match-wins logic)
-  6. Export output workbook
+  5. Merge registration info (optional file)
+  6. Group matching (same first-match-wins logic)
+  7. Export outreach workbooks (other offices + SAS)
 """
 
 import logging
@@ -22,11 +23,12 @@ import pandas as pd
 from processors.midterm_processor import MidtermProcessor
 from processors.midterm_aggregator import MidtermAggregator
 from processors.contact_processor import ContactProcessor
+from processors.registration_processor import RegistrationProcessor
 from processors.group_matcher import GroupMatcher
 from processors.exporter import Exporter
 from utils.config import (
-    MIDTERM_OUTPUT_COLUMNS,
     MIDTERM_OUTPUT_FILENAME_PATTERN,
+    MIDTERM_SAS_OUTPUT_FILENAME_PATTERN,
     LOG_DATE_FORMAT,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
@@ -57,6 +59,7 @@ class MidtermPipelineInputs:
     season: str = ""
     checkpoint_type: str = "Midterm"
     semester_groups: list = None  # [{name, file_path}] — replaces control_file + group_dir when set
+    registration_report: Optional[Path] = None
 
 
 @dataclass
@@ -66,6 +69,7 @@ class MidtermPipelineResult:
     errors:  List[str] = field(default_factory=list)
     metrics: Dict[str, Any] = field(default_factory=dict)
     output_path: Optional[Path] = None
+    sas_output_path: Optional[Path] = None
 
 
 class MidtermPipelineController:
@@ -139,6 +143,13 @@ class MidtermPipelineController:
             self._metrics["contact_matches"] = contact_proc.contact_match_count
             self._metrics["contact_misses"]  = contact_proc.contact_miss_count
 
+            # Step 5b — Merge registration extract (optional)
+            self._update("Merging registration information...")
+            registration_proc = RegistrationProcessor(self._qa_log)
+            if inputs.registration_report:
+                registration_proc.load(inputs.registration_report)
+            students_df = registration_proc.merge(students_df)
+
             # Step 6 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
@@ -168,8 +179,8 @@ class MidtermPipelineController:
             self._metrics["total_risk_3_plus"] = len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame()))
 
             # Step 7 — Export
-            self._update("Writing output workbook...")
-            output_path = self._resolve_output_path(inputs.output_dir)
+            self._update("Writing outreach workbooks...")
+            output_path, sas_output_path = self._resolve_output_paths(inputs.output_dir)
             duration = (datetime.now() - self._start_time).total_seconds()
             self._metrics.update({
                 "processing_timestamp": self._start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -180,20 +191,27 @@ class MidtermPipelineController:
             source_files = {
                 "Midterm Grade File":    inputs.midterm_file.name,
                 "Contact Report":        inputs.contact_report.name,
+                "Registration Report": (
+                    inputs.registration_report.name
+                    if inputs.registration_report
+                    else "Not provided"
+                ),
                 "Control File":         inputs.control_file.name,
                 "Group Files Directory": str(inputs.group_dir),
             }
 
-            # Use the existing Exporter but pass MIDTERM_OUTPUT_COLUMNS
-            exporter = MidtermExporter()
-            exporter.export(
+            exporter = Exporter(outreach_mode=True, split_sas=True)
+            sas_path = exporter.export(
                 group_data=group_data,
                 group_order=group_order,
                 qa_log=self._qa_log,
                 metrics=self._metrics,
                 output_path=output_path,
                 source_files=source_files,
+                sas_output_path=sas_output_path,
             )
+            if sas_path:
+                self._metrics["sas_output_filename"] = sas_path.name
 
             # Append to assigned students
             self._append_assigned_students(group_data, group_order)
@@ -234,6 +252,12 @@ class MidtermPipelineController:
                 f"Assigned to groups: {total_assigned:,}",
                 f"Unmatched: {total_unmatched:,}",
                 f"QA events: {self._qa_log.total()}",
+                f"Other offices file: {output_path.name}",
+                (
+                    f"SAS file: {sas_path.name}"
+                    if sas_path
+                    else "SAS file: not created (no SAS group in this run)"
+                ),
             ]
             self._update("\n".join(summary_lines))
 
@@ -242,6 +266,7 @@ class MidtermPipelineController:
                 message="\n".join(summary_lines),
                 metrics=self._metrics,
                 output_path=output_path,
+                sas_output_path=sas_path,
             )
 
         except Exception as exc:
@@ -268,19 +293,25 @@ class MidtermPipelineController:
         for label, path in required:
             result.merge(validate_file_exists(path, label))
             result.merge(validate_file_readable(path, label))
+        if inputs.registration_report:
+            result.merge(validate_file_exists(inputs.registration_report, "Registration Report"))
+            result.merge(validate_file_readable(inputs.registration_report, "Registration Report"))
         if not inputs.semester_groups and not inputs.group_dir.exists():
             result.add_error(f"Group files directory not found: {inputs.group_dir}")
         result.merge(validate_output_path(inputs.output_dir))
         return result
 
-    def _resolve_output_path(self, output_dir: Path) -> Path:
+    def _resolve_output_paths(self, output_dir: Path) -> tuple:
+        """Return (other-offices path, SAS path) sharing one timestamp."""
         from utils.config import get_semester_output_dir
         season = getattr(self, '_current_season', '')
         semester_dir = get_semester_output_dir(season)
-        timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
-        filename = MIDTERM_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp)
         semester_dir.mkdir(parents=True, exist_ok=True)
-        return semester_dir / filename
+        timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
+        return (
+            semester_dir / MIDTERM_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp),
+            semester_dir / MIDTERM_SAS_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp),
+        )
 
     def _exclude_previous(self, students_df: pd.DataFrame):
         if not ASSIGNED_STUDENTS_PATH.exists():
@@ -323,19 +354,3 @@ class MidtermPipelineController:
     def _update(self, message: str) -> None:
         logger.info("Midterm Pipeline: %s", message)
         self.progress_callback(message)
-
-
-# ---------------------------------------------------------------------------
-# Midterm-specific exporter (uses MIDTERM_OUTPUT_COLUMNS)
-# ---------------------------------------------------------------------------
-
-from processors.exporter import Exporter
-from utils.config import MIDTERM_OUTPUT_COLUMNS
-from utils.logging_utils import QALog
-
-
-class MidtermExporter(Exporter):
-    """Extends the base Exporter to use MIDTERM_OUTPUT_COLUMNS."""
-
-    def __init__(self) -> None:
-        super().__init__(data_columns=MIDTERM_OUTPUT_COLUMNS)

@@ -229,15 +229,7 @@ class PipelineController:
 
             # Step 6 — Export
             self._update("Writing outreach workbooks...")
-            output_path = self._resolve_output_path(inputs.output_dir)
-            timestamp_key = (
-                output_path.stem[len("ProgressReport_"):]
-                if output_path.stem.startswith("ProgressReport_")
-                else output_path.stem
-            )
-            sas_output_path = output_path.with_name(
-                SAS_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp_key)
-            )
+            output_path, sas_output_path = self._resolve_output_paths(inputs.output_dir)
             end_time = datetime.now()
             duration = (end_time - self._start_time).total_seconds()
 
@@ -501,14 +493,17 @@ class PipelineController:
                 len(truly_new), len(existing) + len(truly_new),
             )
 
-    def _resolve_output_path(self, output_dir: Path) -> Path:
+    def _resolve_output_paths(self, output_dir: Path) -> tuple:
+        """Return (other-offices path, SAS path) sharing one timestamp."""
         from utils.config import get_semester_output_dir
         season = getattr(self, '_current_season', '')
         semester_dir = get_semester_output_dir(season)
-        timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
-        filename = OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp)
         semester_dir.mkdir(parents=True, exist_ok=True)
-        return semester_dir / filename
+        timestamp = datetime.now().strftime(LOG_DATE_FORMAT)
+        return (
+            semester_dir / OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp),
+            semester_dir / SAS_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp),
+        )
 
     def _update(self, message: str) -> None:
         logger.info("Pipeline: %s", message)

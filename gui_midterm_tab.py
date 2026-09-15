@@ -35,6 +35,14 @@ def build_midterm_tab(app) -> None:
     )
     app._midterm_contact_picker.pack(fill="x", pady=4)
 
+    app._midterm_registration_picker = FilePickerRow(
+        picker_frame,
+        label="Registration Report:",
+        filetypes=[("Excel Files", "*.xlsx *.xls"), ("All Files", "*.*")],
+        tooltip="Optional — same registration extract used in Progress Report Sorter",
+    )
+    app._midterm_registration_picker.pack(fill="x", pady=4)
+
     app._midterm_control_picker = FilePickerRow(
         picker_frame,
         label="Group Control File:",

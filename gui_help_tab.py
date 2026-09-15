@@ -69,6 +69,8 @@ def build_help_tab(self):
     item ("Accepts .xlsx and .csv files")
     item ("At-risk threshold: C- or lower only — W, WM excluded by design")
     item ("Course number built from prefix + number columns (e.g. MAC + 1105 = MAC1105)")
+    item ("Same outreach file layout and SAS split as the Progress Report Sorter")
+    item ("Registration Report is optional — supplies Registered Credits")
 
     section ("📊  Faculty Report Status","#843C0C")
     para ("Analyzes which professors have submitted progress reports. Upload the campaign "
