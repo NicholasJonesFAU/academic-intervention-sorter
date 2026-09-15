@@ -55,6 +55,8 @@ def on_prerun_check_progress(app):
         "Group Folder": app._group_dir_picker.path,
     }
     missing = [k for k, v in paths.items() if not v]
+    # Optional, so it is checked only when supplied and never reported missing
+    registration_path = app._registration_picker.path
     if missing:
         messagebox.showerror(
             "Missing Files",
@@ -104,6 +106,12 @@ def on_prerun_check_progress(app):
         app.after(0, app._log, "Checking contact report...", "step")
         cr_results = checker.check_contact_report(Path(paths["Contact Report"]), progress_ids)
         all_results.extend(cr_results)
+
+        if registration_path:
+            app.after(0, app._log, "Checking registration report...", "step")
+            all_results.extend(
+                checker.check_registration_report(Path(registration_path), progress_ids)
+            )
 
         app.after(0, app._log, "Checking group files...", "step")
         gf_results = checker.check_group_files(
@@ -171,7 +179,6 @@ def collect_progress_inputs(app):
     always_required = {
         "Progress Report": app._progress_picker.path,
         "Contact Report": app._contact_picker.path,
-        "Output Folder": app._output_picker.path,
     }
     for label, val in always_required.items():
         if not val:
@@ -203,7 +210,6 @@ def collect_progress_inputs(app):
         contact_report=Path(always_required["Contact Report"]),
         control_file=control_file,
         group_dir=group_dir,
-        output_dir=Path(always_required["Output Folder"]),
         exclude_previous=app._exclude_var.get(),
         season=season,
         checkpoint_type=checkpoint,

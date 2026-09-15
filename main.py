@@ -72,7 +72,7 @@ from utils .settings_manager import get_settings ,reload_settings ,SETTINGS_PATH
 from processors .report_status_processor import ReportStatusProcessor 
 from processors .report_status_exporter import ReportStatusExporter 
 from processors .department_mapper import DepartmentMapper 
-from utils .config import APP_NAME ,APP_VERSION ,OUTPUT_DIR 
+from utils .config import APP_NAME ,APP_VERSION 
 from utils .logging_utils import setup_logger 
 
 logger =setup_logger ("intervention_sorter")
@@ -103,7 +103,7 @@ class InterventionSorterApp (tk .Tk ):
         self ._exclude_var =tk .BooleanVar (value =False )
         self ._midterm_exclude_var =tk .BooleanVar (value =False )
         self ._build_ui ()
-        self ._set_defaults ()
+        self ._build_remaining_tabs ()
         self .after (200 ,self ._check_semester_on_startup )
         self ._report_processing =False 
 
@@ -314,9 +314,8 @@ class InterventionSorterApp (tk .Tk ):
 
     def _set_buttons_state(self, state: str):
         return set_progress_buttons_state(self, state)
-    def _set_defaults (self ):
-        """Pre-fill output folder to the default output directory."""
-        self ._output_picker .path =str (OUTPUT_DIR )
+    def _build_remaining_tabs (self ):
+        """Build every tab after the progress report tab."""
         self ._build_report_status_tab ()
         self ._build_midterm_tab ()
         self ._build_trend_tab ()

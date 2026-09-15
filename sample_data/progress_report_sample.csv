@@ -1,0 +1,148 @@
+Student Name,Student ID,Course Number,Course Name,Marked At-Risk,Progress Report Grade,Progress Report Number of Absences,Alert Reasons,Progress Report Comment
+"Perez, Kwame",Z10000001,MAC1105,College Algebra,TRUE,D,6,Excessive Absences,Student has not responded to outreach.
+"Perez, Kwame",Z10000001,PSY2012,General Psychology,TRUE,W,10,No Show,
+"Perez, Kwame",Z10000001,ECO2013,Macroeconomics,TRUE,D,5,Missing Assignments,
+"Brown, Nadia",Z10000002,HIS1010,Western Civilization,True,W,7,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Brown, Nadia",Z10000002,STA2023,Introductory Statistics,True,D,5,Missing Assignments,Student has not responded to outreach.
+"Brown, Nadia",Z10000002,PSY2012,General Psychology,True,F,8,Low Exam Scores,Student has not responded to outreach.
+"Miller, Morgan",Z10000003,ENC1101,College Writing I,true,C-,3,In Danger of Failing; Excessive Absences,
+"Miller, Morgan",Z10000003,SLS1501,Student Success Strategies,true,D,11,In Danger of Failing; Excessive Absences,"Spoke with student, aware of situation."
+"Hernandez, Nadia",Z10000004,BSC1010,Biological Principles,Yes,D,2,Low Exam Scores,"Spoke with student, aware of situation."
+"Hernandez, Nadia",Z10000004,ECO2013,Macroeconomics,Yes,D-,6,Excessive Absences,"Spoke with student, aware of situation."
+"Smith, Reese",Z10000005,CHM2045,General Chemistry I,Y,W,6,Excessive Absences,
+"Martinez, Casey",Z10000006,BSC1010,Biological Principles,1,F,2,No Show,"Spoke with student, aware of situation."
+"Lee, Peyton",Z10000007,STA2023,Introductory Statistics,TRUE,D+,6,Low Exam Scores,
+"Lee, Peyton",Z10000007,SLS1501,Student Success Strategies,TRUE,C-,8,Excessive Absences,"Spoke with student, aware of situation."
+"Lee, Peyton",Z10000007,CHM2045,General Chemistry I,TRUE,D-,12,In Danger of Failing; Excessive Absences,
+"Garcia, Jordan",Z10000008,STA2023,Introductory Statistics,True,D-,1,In Danger of Failing; Excessive Absences,
+"Garcia, Jordan",Z10000008,MAC1105,College Algebra,True,W,4,In Danger of Failing; Excessive Absences,Student has not responded to outreach.
+"Johnson, Morgan",Z10000009,HIS1010,Western Civilization,true,W,3,Missing Assignments,"Spoke with student, aware of situation."
+"Jones, Jamie",Z10000010,ECO2013,Macroeconomics,Yes,C-,11,Low Exam Scores,"Spoke with student, aware of situation."
+"Jones, Jamie",Z10000010,BSC1010,Biological Principles,Yes,D,2,Missing Assignments,Student has not responded to outreach.
+"Jones, Jamie",Z10000010,HIS1010,Western Civilization,Yes,D,10,Missing Assignments,
+"Rodriguez, Dimitri",Z10000011,ECO2013,Macroeconomics,Y,D,0,In Danger of Failing; Excessive Absences,"Spoke with student, aware of situation."
+"Rodriguez, Dimitri",Z10000011,ENC1101,College Writing I,Y,D,12,No Show,
+"Rodriguez, Dimitri",Z10000011,BSC1010,Biological Principles,Y,D+,3,In Danger of Failing,
+"Smith, Cameron",Z10000012,SLS1501,Student Success Strategies,1,D,12,No Show,
+"Smith, Cameron",Z10000012,HIS1010,Western Civilization,1,F,6,Excessive Absences,
+"Smith, Cameron",Z10000012,ENC1101,College Writing I,1,D+,10,Missing Assignments,
+"Moore, Peyton",Z10000013,ECO2013,Macroeconomics,TRUE,F,8,In Danger of Failing,Referred to tutoring center.
+"Moore, Peyton",Z10000013,CHM2045,General Chemistry I,TRUE,D+,4,No Show,Student has not responded to outreach.
+"Garcia, Hayden",Z10000014,MAC1105,College Algebra,True,F,9,Low Exam Scores,Student has not responded to outreach.
+"Garcia, Hayden",Z10000014,SLS1501,Student Success Strategies,True,F,10,Excessive Absences,
+"Brown, Skylar",Z10000015,SLS1501,Student Success Strategies,true,F,7,Low Exam Scores,Student has not responded to outreach.
+"Martinez, Jamie",Z10000016,ECO2013,Macroeconomics,Yes,D-,8,Excessive Absences,
+"Martinez, Jamie",Z10000016,STA2023,Introductory Statistics,Yes,F,9,Excessive Absences,Student has not responded to outreach.
+"Hernandez, Carlos",Z10000017,CHM2045,General Chemistry I,Y,W,0,Missing Assignments,
+"Hernandez, Carlos",Z10000017,MAC1105,College Algebra,Y,W,6,Low Exam Scores,
+"Rodriguez, Casey",Z10000018,SLS1501,Student Success Strategies,1,D+,12,No Show,Student has not responded to outreach.
+"Martinez, Morgan",Z10000019,HIS1010,Western Civilization,TRUE,D+,10,Excessive Absences,
+"Martinez, Morgan",Z10000019,CHM2045,General Chemistry I,TRUE,D-,8,In Danger of Failing; Excessive Absences,
+"Martinez, Morgan",Z10000019,SLS1501,Student Success Strategies,TRUE,C-,11,Low Exam Scores,Referred to tutoring center.
+"Martinez, Peyton",Z10000020,COP2210,Programming I,True,F,4,Excessive Absences,Student has not responded to outreach.
+"Jones, Blake",Z10000021,COP2210,Programming I,true,W,4,Low Exam Scores,Referred to tutoring center.
+"Jones, Riley",Z10000022,SLS1501,Student Success Strategies,Yes,D-,3,Excessive Absences,"Spoke with student, aware of situation."
+"Smith, Drew",Z10000023,ECO2013,Macroeconomics,Y,F,11,In Danger of Failing,
+"Smith, Drew",Z10000023,HIS1010,Western Civilization,Y,F,12,In Danger of Failing,Referred to tutoring center.
+"Brown, Casey",Z10000024,BSC1010,Biological Principles,1,W,11,Missing Assignments,
+"Brown, Casey",Z10000024,SLS1501,Student Success Strategies,1,W,3,In Danger of Failing; Excessive Absences,Student has not responded to outreach.
+"Hernandez, Jamie",Z10000025,ENC1101,College Writing I,TRUE,D,8,Excessive Absences,Student has not responded to outreach.
+"Hernandez, Jamie",Z10000025,PSY2012,General Psychology,TRUE,D-,9,No Show,Referred to tutoring center.
+"Lee, Priya",Z10000026,COP2210,Programming I,True,D,0,Low Exam Scores,
+"Lee, Priya",Z10000026,ECO2013,Macroeconomics,True,F,3,In Danger of Failing,Student has not responded to outreach.
+"Williams, Carlos",Z10000027,STA2023,Introductory Statistics,true,D+,1,No Show,Student has not responded to outreach.
+"Williams, Carlos",Z10000027,ENC1101,College Writing I,true,F,8,In Danger of Failing,
+"Williams, Carlos",Z10000027,ECO2013,Macroeconomics,true,D-,8,Low Exam Scores,Referred to tutoring center.
+"Nguyen, Wei",Z10000028,BSC1010,Biological Principles,Yes,W,6,Missing Assignments,Student has not responded to outreach.
+"Nguyen, Wei",Z10000028,MAC1105,College Algebra,Yes,D,9,In Danger of Failing,Referred to tutoring center.
+"Davis, Riley",Z10000029,MAC1105,College Algebra,Y,F,4,No Show,
+"Jones, Maria",Z10000030,HIS1010,Western Civilization,1,F,10,Missing Assignments,
+"Jones, Maria",Z10000030,COP2210,Programming I,1,D,3,In Danger of Failing,Referred to tutoring center.
+"Jones, Maria",Z10000030,ENC1101,College Writing I,1,D,0,Excessive Absences,Referred to tutoring center.
+"Miller, Blake",Z10000031,BSC1010,Biological Principles,TRUE,D-,11,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Miller, Blake",Z10000031,SLS1501,Student Success Strategies,TRUE,D+,3,In Danger of Failing,
+"Miller, Blake",Z10000031,ECO2013,Macroeconomics,TRUE,D-,6,Excessive Absences,
+"Moore, Quinn",Z10000032,SLS1501,Student Success Strategies,True,W,9,Low Exam Scores,Referred to tutoring center.
+"Moore, Quinn",Z10000032,ENC1101,College Writing I,True,F,8,Missing Assignments,"Spoke with student, aware of situation."
+"Anderson, Cameron",Z10000033,ENC1101,College Writing I,true,F,10,Excessive Absences,
+"Anderson, Cameron",Z10000033,SLS1501,Student Success Strategies,true,F,6,In Danger of Failing; Excessive Absences,
+"Anderson, Cameron",Z10000033,PSY2012,General Psychology,true,D+,0,Low Exam Scores,
+"Smith, Nadia",Z10000034,HIS1010,Western Civilization,Yes,C-,5,In Danger of Failing,"Spoke with student, aware of situation."
+"Smith, Nadia",Z10000034,BSC1010,Biological Principles,Yes,D-,3,No Show,"Spoke with student, aware of situation."
+"Smith, Nadia",Z10000034,COP2210,Programming I,Yes,F,12,Low Exam Scores,Referred to tutoring center.
+"Martinez, Reese",Z10000035,PSY2012,General Psychology,Y,D+,11,Excessive Absences,"Spoke with student, aware of situation."
+"Martinez, Reese",Z10000035,CHM2045,General Chemistry I,Y,D+,11,Missing Assignments,Referred to tutoring center.
+"Martinez, Reese",Z10000035,STA2023,Introductory Statistics,Y,D,6,Excessive Absences,
+"Johnson, Morgan",Z10000036,COP2210,Programming I,1,F,5,In Danger of Failing; Excessive Absences,
+"Johnson, Morgan",Z10000036,PSY2012,General Psychology,1,F,0,Low Exam Scores,
+"Johnson, Morgan",Z10000036,CHM2045,General Chemistry I,1,D+,12,No Show,
+"Lee, Alex",Z10000037,BSC1010,Biological Principles,TRUE,D-,8,Excessive Absences,Student has not responded to outreach.
+"Lee, Alex",Z10000037,STA2023,Introductory Statistics,TRUE,W,7,In Danger of Failing; Excessive Absences,
+"Lee, Alex",Z10000037,HIS1010,Western Civilization,TRUE,D+,3,Excessive Absences,Student has not responded to outreach.
+"Miller, Morgan",Z10000038,STA2023,Introductory Statistics,True,D-,4,No Show,
+"Miller, Morgan",Z10000038,ECO2013,Macroeconomics,True,C-,4,Missing Assignments,Referred to tutoring center.
+"Miller, Morgan",Z10000038,CHM2045,General Chemistry I,True,W,1,In Danger of Failing; Excessive Absences,"Spoke with student, aware of situation."
+"Miller, Fatima",Z10000039,SLS1501,Student Success Strategies,true,D,6,In Danger of Failing,
+"Miller, Fatima",Z10000039,ECO2013,Macroeconomics,true,C-,8,In Danger of Failing; Excessive Absences,Student has not responded to outreach.
+"Miller, Fatima",Z10000039,STA2023,Introductory Statistics,true,D-,10,No Show,Student has not responded to outreach.
+"Lopez, Jordan",Z10000040,SLS1501,Student Success Strategies,Yes,F,1,In Danger of Failing,"Spoke with student, aware of situation."
+"Lopez, Jordan",Z10000040,PSY2012,General Psychology,Yes,D,9,Excessive Absences,"Spoke with student, aware of situation."
+"Lopez, Jordan",Z10000040,CHM2045,General Chemistry I,Yes,D-,0,Low Exam Scores,
+"Garcia, Peyton",Z10000041,STA2023,Introductory Statistics,Y,D-,0,Missing Assignments,"Spoke with student, aware of situation."
+"Perez, Avery",Z10000042,COP2210,Programming I,1,F,10,In Danger of Failing; Excessive Absences,Student has not responded to outreach.
+"Perez, Avery",Z10000042,SLS1501,Student Success Strategies,1,W,11,No Show,
+"Nguyen, Wei",Z10000043,ENC1101,College Writing I,TRUE,W,5,Low Exam Scores,Student has not responded to outreach.
+"Rodriguez, Carlos",Z10000044,PSY2012,General Psychology,True,W,9,In Danger of Failing,
+"Rodriguez, Carlos",Z10000044,BSC1010,Biological Principles,True,D,10,Excessive Absences,
+"Anderson, Hayden",Z10000045,CHM2045,General Chemistry I,true,D+,3,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Wilson, Casey",Z10000046,MAC1105,College Algebra,Yes,C-,2,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Wilson, Casey",Z10000046,CHM2045,General Chemistry I,Yes,C-,4,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Wilson, Casey",Z10000046,ENC1101,College Writing I,Yes,W,0,Missing Assignments,
+"Nguyen, Riley",Z10000047,SLS1501,Student Success Strategies,Y,D-,11,Missing Assignments,Student has not responded to outreach.
+"Nguyen, Riley",Z10000047,COP2210,Programming I,Y,D-,0,Low Exam Scores,Referred to tutoring center.
+"Nguyen, Riley",Z10000047,MAC1105,College Algebra,Y,D,7,Missing Assignments,
+"Martinez, Morgan",Z10000048,ECO2013,Macroeconomics,1,D,10,Missing Assignments,Referred to tutoring center.
+"Martinez, Morgan",Z10000048,COP2210,Programming I,1,F,12,In Danger of Failing,
+"Martinez, Morgan",Z10000048,BSC1010,Biological Principles,1,D,7,Excessive Absences,
+"Nguyen, Carlos",Z10000049,BSC1010,Biological Principles,TRUE,D,2,Missing Assignments,
+"Nguyen, Carlos",Z10000049,ENC1101,College Writing I,TRUE,D+,8,In Danger of Failing,
+"Nguyen, Carlos",Z10000049,ECO2013,Macroeconomics,TRUE,D,7,Excessive Absences,Referred to tutoring center.
+"Martinez, Jordan",Z10000050,CHM2045,General Chemistry I,True,F,7,Low Exam Scores,
+"Martinez, Jordan",Z10000050,ECO2013,Macroeconomics,True,W,5,Excessive Absences,Student has not responded to outreach.
+"Martinez, Jordan",Z10000050,SLS1501,Student Success Strategies,True,C-,2,No Show,
+"Davis, Riley",Z10000051,BSC1010,Biological Principles,true,F,12,Low Exam Scores,Referred to tutoring center.
+"Davis, Riley",Z10000051,STA2023,Introductory Statistics,true,W,10,Missing Assignments,Student has not responded to outreach.
+"Davis, Riley",Z10000051,HIS1010,Western Civilization,true,F,4,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Anderson, Dimitri",Z10000052,HIS1010,Western Civilization,Yes,D+,9,Missing Assignments,"Spoke with student, aware of situation."
+"Anderson, Dimitri",Z10000052,MAC1105,College Algebra,Yes,D,12,Excessive Absences,Referred to tutoring center.
+"Anderson, Dimitri",Z10000052,ENC1101,College Writing I,Yes,D,6,Missing Assignments,
+"Jones, Morgan",Z10000053,CHM2045,General Chemistry I,Y,F,3,Low Exam Scores,"Spoke with student, aware of situation."
+"Jones, Morgan",Z10000053,ENC1101,College Writing I,Y,F,8,Missing Assignments,
+"Jones, Morgan",Z10000053,HIS1010,Western Civilization,Y,F,0,In Danger of Failing,Referred to tutoring center.
+"Garcia, Avery",Z10000054,CHM2045,General Chemistry I,1,C-,1,Excessive Absences,Student has not responded to outreach.
+"Garcia, Avery",Z10000054,PSY2012,General Psychology,1,F,5,In Danger of Failing,
+"Garcia, Avery",Z10000054,COP2210,Programming I,1,F,4,Excessive Absences,Referred to tutoring center.
+"Davis, Skylar",Z10000055,STA2023,Introductory Statistics,TRUE,W,4,Missing Assignments,
+"Davis, Skylar",Z10000055,SLS1501,Student Success Strategies,TRUE,F,12,In Danger of Failing,
+"Davis, Skylar",Z10000055,PSY2012,General Psychology,TRUE,F,11,Excessive Absences,
+"Martinez, Drew",Z10000056,HIS1010,Western Civilization,True,W,9,In Danger of Failing; Excessive Absences,Referred to tutoring center.
+"Lee, Hayden",Z10000057,PSY2012,General Psychology,true,C-,11,In Danger of Failing; Excessive Absences,"Spoke with student, aware of situation."
+"Lee, Hayden",Z10000057,STA2023,Introductory Statistics,true,D-,5,Low Exam Scores,"Spoke with student, aware of situation."
+"Lee, Hayden",Z10000057,ENC1101,College Writing I,true,C-,7,Excessive Absences,
+"Nguyen, Casey",Z10000058,ENC1101,College Writing I,Yes,F,11,Excessive Absences,
+"Nguyen, Casey",Z10000058,MAC1105,College Algebra,Yes,D,1,In Danger of Failing; Excessive Absences,"Spoke with student, aware of situation."
+"Martinez, Alex",Z10000059,BSC1010,Biological Principles,Y,F,5,In Danger of Failing,
+"Martinez, Alex",Z10000059,STA2023,Introductory Statistics,Y,D+,6,No Show,Student has not responded to outreach.
+"Brown, Wei",Z10000060,PSY2012,General Psychology,1,D-,11,In Danger of Failing; Excessive Absences,
+"Garcia, Hayden",Z10000014,HIS1010,Western Civilization,FALSE,B,1,,
+"Anderson, Cameron",Z10000033,COP2210,Programming I,FALSE,B,1,,
+"Hernandez, Nadia",Z10000004,SLS1501,Student Success Strategies,FALSE,B,1,,
+"Wilson, Casey",Z10000046,ENC1101,College Writing I,FALSE,B,1,,
+"Lopez, Jordan",Z10000040,SLS1501,Student Success Strategies,FALSE,B,1,,
+"Brown, Nadia",Z10000002,ENC1101,College Writing I,FALSE,B,1,,
+"Martinez, Morgan",Z10000048,STA2023,Introductory Statistics,FALSE,B,1,,
+"Nguyen, Carlos",Z10000049,HIS1010,Western Civilization,FALSE,B,1,,
+"Williams, Carlos",Z10000027,STA2023,Introductory Statistics,FALSE,B,1,,
+"Lee, Alex",Z10000037,BSC1010,Biological Principles,FALSE,B,1,,
+"Davis, Riley",Z10000029,HIS1010,Western Civilization,FALSE,B,1,,
+"Jones, Maria",Z10000030,MAC1105,College Algebra,FALSE,B,1,,

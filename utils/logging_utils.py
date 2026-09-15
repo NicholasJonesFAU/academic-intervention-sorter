@@ -52,7 +52,13 @@ def setup_logger(name: str = "intervention_sorter") -> logging.Logger:
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    # Console handler
+    # Console handler. Log messages contain characters like → that the default
+    # Windows console encoding (cp1252) cannot represent, which otherwise makes
+    # logging raise UnicodeEncodeError on every such line.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
     ch = logging.StreamHandler(sys.stdout)
     ch.setFormatter(formatter)
     logger.addHandler(ch)

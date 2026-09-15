@@ -59,9 +59,13 @@ def build_help_tab(self):
     item ("Supports .xlsx and .csv input files")
     item ("First-match-wins group assignment — priority set by control file order")
     item ("Unmatched students go to Risk_1_2 or Risk_3_Plus buckets")
-    item ("Pre-Run Check validates files before committing to a full run")
+    item ("Pre-Run Check validates files before committing to a full run, including "
+    "the optional Registration Report")
     item ("Exclude previously assigned students using the checkbox")
     item ("Group Selection dialog lets you choose which groups to produce per run")
+    item ("Output always lands in the semester folder under output/ — there is no "
+    "output folder to pick")
+    item ("Load Demo Files fills every picker with the synthetic files in sample_data/")
 
     section ("📝  Midterm Sorter","#4A235A")
     para ("Loads your Canvas midterm grade export and flags students with C- or below "
@@ -93,7 +97,8 @@ def build_help_tab(self):
     section ("🗂️  Campaign Manager","#1F3864")
     para ("Manages the full semester lifecycle. Create a semester, track PR1/Midterm/PR2 "
     "progress, and complete it when done.")
-    item ("File paths (contact, control, group folder) saved on first run — pre-fill all subsequent runs")
+    item ("File paths (contact, registration, control, group folder) saved on first run — "
+    "they pre-fill the progress and midterm tabs on every later run")
     item ("Output files automatically organized into semester subfolders")
     item ("Mark Complete and Reset buttons per checkpoint")
     item ("Complete Semester generates the Master Season Report automatically")

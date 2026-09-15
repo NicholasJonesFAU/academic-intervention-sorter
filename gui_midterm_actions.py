@@ -28,7 +28,6 @@ def run_midterm_sort(app):
     always_required = {
         "Midterm Grade File": app._midterm_file_picker.path,
         "Contact Report": app._midterm_contact_picker.path,
-        "Output Folder": app._midterm_output_picker.path,
     }
     for label, val in always_required.items():
         if not val:
@@ -57,7 +56,6 @@ def run_midterm_sort(app):
         contact_report=Path(always_required["Contact Report"]),
         control_file=control_file,
         group_dir=group_dir,
-        output_dir=Path(always_required["Output Folder"]),
         exclude_previous=app._midterm_exclude_var.get(),
         season=season,
         checkpoint_type="Midterm",

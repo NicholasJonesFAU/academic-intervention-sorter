@@ -60,15 +60,12 @@ def build_midterm_tab(app) -> None:
     )
     app._midterm_group_dir_picker.pack(fill="x", pady=4)
 
-    app._midterm_output_picker = FilePickerRow(
+    tk.Label(
         picker_frame,
-        label="Output Folder:",
-        filetypes=[],
-        is_directory=True,
-        tooltip="Where the output workbook will be saved",
-    )
-    app._midterm_output_picker.pack(fill="x", pady=4)
-    app._midterm_output_picker.path = str(OUTPUT_DIR)
+        text=f"Output is saved to the semester folder under {OUTPUT_DIR}",
+        bg=theme.PANEL_BG, fg=theme.TEXT_MUTED, font=theme.FONT_SUB,
+        anchor="w", wraplength=700, justify="left",
+    ).pack(fill="x", pady=(8, 2))
 
     checkbox_frame = tk.Frame(outer, bg=theme.PANEL_BG)
     checkbox_frame.pack(fill="x", pady=(8, 0))

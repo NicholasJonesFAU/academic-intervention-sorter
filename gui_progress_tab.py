@@ -7,6 +7,7 @@ import gui_theme as theme
 from gui_widgets import section_label, RoundedButton, FilePickerRow
 from gui_logging import configure_log_tags, DEFAULT_LOG_TAGS
 from gui_demo import load_progress_demo_files
+from utils.config import OUTPUT_DIR
 
 
 def build_progress_report_sorter_tab(app, tab):
@@ -60,14 +61,12 @@ def build_progress_report_sorter_tab(app, tab):
     )
     app ._group_dir_picker .pack (fill ="x",pady =4 )
 
-    app ._output_picker =FilePickerRow (
+    tk .Label (
     picker_frame ,
-    label ="Output Folder:",
-    filetypes =[],
-    is_directory =True ,
-    tooltip ="Where the output Excel workbook will be saved",
-    )
-    app ._output_picker .pack (fill ="x",pady =4 )
+    text =f"Output is saved to the semester folder under {OUTPUT_DIR}",
+    bg =theme.PANEL_BG ,fg =theme.TEXT_MUTED ,font =theme.FONT_SUB ,
+    anchor ="w",wraplength =700 ,justify ="left",
+    ).pack (fill ="x",pady =(8 ,2 ))
 
     # Exclude previously assigned checkbox
     chk_frame =tk .Frame (content ,bg =theme.PANEL_BG )

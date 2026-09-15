@@ -1,16 +1,25 @@
 # Academic Intervention Sorter Demo Pack
 
-This folder contains fully synthetic sample files for demonstrating the Academic Intervention Sorter without using student data.
+`sample_data/` holds fully synthetic files for demonstrating the Academic
+Intervention Sorter without touching real student data.
 
 ## Files Included
 
 - `sample_data/progress_report_sample.csv`
 - `sample_data/contact_report_sample.xlsx`
+- `sample_data/registration_report_sample.xlsx`
 - `sample_data/group_control.txt`
-- `sample_data/group_files/01_Academic_Coaching.xlsx`
-- `sample_data/group_files/02_Tutoring_Referral.xlsx`
-- `sample_data/group_files/03_Advisor_Outreach.xlsx`
-- `sample_data/expected_output/expected_behavior.txt`
+- `sample_data/group_files/01_SAS.xlsx`
+- `sample_data/group_files/02_Athletes.xlsx`
+- `sample_data/group_files/03_Academic_Coaching.xlsx`
+- `sample_data/group_files/04_Tutoring_Referral.xlsx`
+
+Regenerate them at any time, for example after changing a column mapping in
+`utils/config.py`:
+
+```bash
+python generate_sample_data.py
+```
 
 ## How to Run the Demo
 
@@ -20,33 +29,44 @@ This folder contains fully synthetic sample files for demonstrating the Academic
    python main.py
    ```
 
-2. On the **Progress Report Sorter** tab, select:
+2. On the **Progress Report Sorter** tab, click **Load Demo Files**. That fills
+   every picker for you. To do it by hand instead:
 
    | App Field | Demo File |
    |---|---|
    | Progress Report | `sample_data/progress_report_sample.csv` |
    | Contact Report | `sample_data/contact_report_sample.xlsx` |
+   | Registration Report | `sample_data/registration_report_sample.xlsx` |
    | Group Control File | `sample_data/group_control.txt` |
    | Group Files Folder | `sample_data/group_files/` |
-   | Output Folder | any local folder, such as `outputs/` |
 
 3. Click **Pre-Run Check** first.
 
 4. If the check passes, click **Run Full Processing**.
 
-5. Review the generated Excel workbook in your selected output folder.
+5. Two workbooks appear in the semester folder under `output/`: one for the
+   participating offices and one for Student Accessibility Services.
+
+You can also run the whole pipeline headless, with no GUI:
+
+```bash
+python test_pipeline.py
+```
 
 ## What This Demonstrates
 
-This demo shows that the application can:
+- reading a progress report and filtering to at-risk students
+- enriching records with contact and course-registration data
+- prioritized group matching, where the first matching group wins
+- preventing duplicate assignment across intervention groups
+- splitting SAS students into their own workbook
+- generating outreach workbooks with tracking columns and dropdowns
 
-- read a progress report
-- filter to at-risk students
-- enrich student records with contact data
-- apply prioritized group matching
-- prevent duplicate assignment across intervention groups
-- generate an organized Excel workbook
+The demo data deliberately includes a few students in two group files at once,
+and a few with no contact record, so first-match-wins and the
+`Missing_Contacts` tab are both visible in the output.
 
 ## Privacy Note
 
-All data in this demo pack is fictional. Do not commit real student data, reports, outputs, or logs to GitHub.
+All data in this demo pack is fictional. Do not commit real student data,
+reports, outputs, or logs to GitHub.

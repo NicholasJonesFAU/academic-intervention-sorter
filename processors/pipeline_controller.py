@@ -34,6 +34,7 @@ from utils.config import (
     LOG_DATE_FORMAT,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
+    get_semester_output_dir,
 )
 from utils.validation import (
     validate_file_exists,
@@ -55,7 +56,6 @@ class PipelineInputs:
     contact_report: Path
     control_file: Path
     group_dir: Path
-    output_dir: Path
     exclude_previous: bool = False
     skip_groups: set = None  # Group tab names to skip (students fall to buckets)
     season: str = ""
@@ -229,7 +229,7 @@ class PipelineController:
 
             # Step 6 — Export
             self._update("Writing outreach workbooks...")
-            output_path, sas_output_path = self._resolve_output_paths(inputs.output_dir)
+            output_path, sas_output_path = self._resolve_output_paths()
             end_time = datetime.now()
             duration = (end_time - self._start_time).total_seconds()
 
@@ -284,6 +284,11 @@ class PipelineController:
                     contact_report=str(inputs.contact_report),
                     control_file=str(inputs.control_file),
                     group_folder=str(inputs.group_dir),
+                    registration_report=(
+                        str(inputs.registration_report)
+                        if inputs.registration_report
+                        else ""
+                    ),
                 )
                 sm.record_run(
                     checkpoint_name=inputs.checkpoint_type,
@@ -426,7 +431,9 @@ class PipelineController:
                 f"Group files directory not found: {inputs.group_dir}"
             )
 
-        result.merge(validate_output_path(inputs.output_dir))
+        # Validate the folder the run will actually write to, not a caller-supplied
+        # one — output always goes to the semester folder under output/.
+        result.merge(validate_output_path(get_semester_output_dir(inputs.season)))
 
         return result
 
@@ -493,9 +500,8 @@ class PipelineController:
                 len(truly_new), len(existing) + len(truly_new),
             )
 
-    def _resolve_output_paths(self, output_dir: Path) -> tuple:
+    def _resolve_output_paths(self) -> tuple:
         """Return (other-offices path, SAS path) sharing one timestamp."""
-        from utils.config import get_semester_output_dir
         season = getattr(self, '_current_season', '')
         semester_dir = get_semester_output_dir(season)
         semester_dir.mkdir(parents=True, exist_ok=True)

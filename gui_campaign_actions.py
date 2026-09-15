@@ -445,6 +445,47 @@ def check_semester_on_startup(app):
 
     if not sm.has_active_semester():
         app._show_new_semester_dialog(on_startup=True)
+    else:
+        prefill_pickers_from_semester(app)
+
+
+# Saved semester path → the pickers it should fill on both the progress and
+# midterm tabs. The same files are used at every checkpoint.
+_PREFILL_TARGETS = [
+    ("contact_report", ["_contact_picker", "_midterm_contact_picker"]),
+    ("registration_report", ["_registration_picker", "_midterm_registration_picker"]),
+    ("control_file", ["_control_picker", "_midterm_control_picker"]),
+    ("group_folder", ["_group_dir_picker", "_midterm_group_dir_picker"]),
+]
+
+
+def prefill_pickers_from_semester(app):
+    """
+    Fill empty file pickers from the active semester's saved paths.
+
+    A saved path that no longer exists is skipped, so a moved or deleted file
+    leaves the picker blank rather than pointing at nothing.
+    """
+    sem = SemesterManager().active_semester()
+    if not sem:
+        return
+
+    filled = 0
+    for field_name, picker_attrs in _PREFILL_TARGETS:
+        saved = getattr(sem, field_name, "") or ""
+        if not saved or not Path(saved).exists():
+            continue
+        for attr in picker_attrs:
+            picker = getattr(app, attr, None)
+            if picker is not None and not picker.path:
+                picker.path = saved
+                filled += 1
+
+    if filled and hasattr(app, "_log"):
+        app._log(
+            f"Pre-filled {filled} file path(s) from semester '{sem.name}'.",
+            "info",
+        )
 
 
 def show_new_semester_dialog_wrapper(app, on_startup=False):

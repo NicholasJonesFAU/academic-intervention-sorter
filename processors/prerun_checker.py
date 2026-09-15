@@ -161,6 +161,78 @@ class PreRunChecker:
 
         return results
 
+    def check_registration_report(self, file_path: Path,
+                                  progress_ids: Optional[set] = None) -> List[CheckResult]:
+        """Validate the optional course-registration extract."""
+        from utils.config import (
+            REGISTRATION_REPORT_COLUMN_MAP,
+            REGISTRATION_STATUS_ACTIVE_VALUES,
+        )
+
+        results = []
+        col = REGISTRATION_REPORT_COLUMN_MAP
+
+        try:
+            df = self._load_file(file_path)
+        except Exception as exc:
+            return [CheckResult("error", f"Cannot open registration report: {exc}")]
+
+        df.columns = [str(c).strip() for c in df.columns]
+
+        id_col = col["student_id"]
+        if id_col not in df.columns:
+            results.append(CheckResult("error",
+                f"Student ID column '{id_col}' not found in registration report. "
+                f"Found: {list(df.columns[:6])}..."))
+            return results
+
+        reg_ids = set(normalize_student_id_series(df[id_col]).replace("", pd.NA).dropna())
+        results.append(CheckResult("info",
+            f"Registration report loaded: {len(df):,} rows, "
+            f"{len(reg_ids):,} unique student IDs"))
+
+        # Registered Credits depends on both of these
+        credit_col = col["credit_hr"]
+        status_col = col["registration_status"]
+        if credit_col not in df.columns:
+            results.append(CheckResult("warning",
+                f"Credit hours column '{credit_col}' not found — Registered Credits will be 0."))
+        if status_col not in df.columns:
+            results.append(CheckResult("warning",
+                f"Status column '{status_col}' not found — Registered Credits will be 0."))
+        elif credit_col in df.columns:
+            statuses = df[status_col].astype(str).str.strip()
+            active = statuses.isin(REGISTRATION_STATUS_ACTIVE_VALUES).sum()
+            if active == 0:
+                results.append(CheckResult("warning",
+                    f"No rows have an active registration status, so every student's "
+                    f"Registered Credits will be 0. Found instead: "
+                    f"{sorted(set(statuses))[:5]}"))
+            else:
+                results.append(CheckResult("info",
+                    f"Active registration rows: {active:,} of {len(df):,}"))
+
+        for label, key in [("College", "college"), ("Major", "major"),
+                           ("Classification", "classification")]:
+            c = col.get(key, "")
+            if c and c not in df.columns:
+                results.append(CheckResult("warning",
+                    f"{label} column '{c}' not found — will be blank in output."))
+
+        if progress_ids:
+            missing = progress_ids - reg_ids
+            pct = len(missing) / len(progress_ids) * 100 if progress_ids else 0
+            if missing:
+                results.append(CheckResult(
+                    "warning" if pct < 20 else "error",
+                    f"{len(missing):,} at-risk students ({pct:.1f}%) have no registration rows."
+                ))
+            else:
+                results.append(CheckResult("info",
+                    "All at-risk students have registration rows."))
+
+        return results
+
     def check_group_files(self, control_path: Path,
                           group_dir: Path,
                           progress_ids: Optional[set] = None) -> List[CheckResult]:
