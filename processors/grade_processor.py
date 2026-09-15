@@ -9,7 +9,7 @@ from typing import Tuple
 
 import pandas as pd
 
-from utils.config import PROGRESS_REPORT_EXTENSIONS
+from utils.config import PROGRESS_REPORT_AT_RISK_GRADES, PROGRESS_REPORT_EXTENSIONS
 from utils.settings_manager import get_settings
 from utils.normalization import (
     normalize_student_id_series,
@@ -52,7 +52,7 @@ class GradeProcessor:
             raise ValueError("\n".join(validation.errors))
 
         df = self._normalize_columns(df_raw, file_path.name)
-        df_at_risk = self._filter_at_risk(df)
+        df_at_risk = self._filter_at_risk(df, file_path.name)
         self._total_at_risk_rows = len(df_at_risk)
         logger.info("GradeProcessor: %d at-risk rows after filtering", self._total_at_risk_rows)
 
@@ -152,8 +152,26 @@ class GradeProcessor:
 
         return result
 
-    def _filter_at_risk(self, df: pd.DataFrame) -> pd.DataFrame:
-        return df[df["__at_risk_bool"]].copy()
+    def _filter_at_risk(self, df: pd.DataFrame, source: str) -> pd.DataFrame:
+        """Keep rows flagged At-Risk or whose Current Grade is C- or below."""
+        grade_match = (
+            df["Current Grade"].astype(str).str.strip().str.lower()
+            .isin(PROGRESS_REPORT_AT_RISK_GRADES)
+        )
+        at_risk_flag = df["__at_risk_bool"]
+        include_mask = at_risk_flag | grade_match
+
+        grade_only_mask = grade_match & ~at_risk_flag
+        for _, row in df[grade_only_mask].iterrows():
+            grade = str(row.get("Current Grade", "")).strip()
+            self.qa_log.log(
+                "INCLUDED_BY_GRADE_THRESHOLD",
+                student_id=row["Student ID"],
+                detail=f"Included due to reported grade '{grade}' (not flagged At-Risk)",
+                source_file=source,
+            )
+
+        return df[include_mask].copy()
 
     def _remove_duplicate_course_rows(self, df: pd.DataFrame, source: str) -> pd.DataFrame:
         dup_mask = df.duplicated(subset=["Student ID", "Course"], keep="first")

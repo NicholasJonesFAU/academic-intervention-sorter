@@ -124,6 +124,12 @@ AT_RISK_TRUE_VALUES = {
     "true", "yes", "y", "1",
 }
 
+# Progress-report letter grades that count as at-risk even when the At-Risk
+# flag is false. Comparison is case-insensitive (normalize to lowercase).
+PROGRESS_REPORT_AT_RISK_GRADES = {
+    "c-", "d+", "d", "d-", "f",
+}
+
 # ---------------------------------------------------------------------------
 # Outreach workbook schema (participating-office files)
 # Internal processing still uses OUTPUT_COLUMNS names; the exporter reshapes.

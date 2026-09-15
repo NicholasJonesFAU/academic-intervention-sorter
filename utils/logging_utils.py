@@ -88,6 +88,7 @@ class QALog:
         EMPTY_GROUP_FILE
         FILE_LOAD_ERROR
         NORMALIZATION_WARNING
+        INCLUDED_BY_GRADE_THRESHOLD
         INFO
     """
 
