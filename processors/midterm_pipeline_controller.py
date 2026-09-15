@@ -337,12 +337,5 @@ from utils.logging_utils import QALog
 class MidtermExporter(Exporter):
     """Extends the base Exporter to use MIDTERM_OUTPUT_COLUMNS."""
 
-    def export(self, group_data, group_order, qa_log, metrics, output_path, source_files):
-        # Temporarily swap output columns
-        import utils.config as cfg
-        original = cfg.OUTPUT_COLUMNS
-        cfg.OUTPUT_COLUMNS = MIDTERM_OUTPUT_COLUMNS
-        try:
-            super().export(group_data, group_order, qa_log, metrics, output_path, source_files)
-        finally:
-            cfg.OUTPUT_COLUMNS = original
+    def __init__(self) -> None:
+        super().__init__(data_columns=MIDTERM_OUTPUT_COLUMNS)

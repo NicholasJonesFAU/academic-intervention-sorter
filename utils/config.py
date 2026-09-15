@@ -3,6 +3,7 @@ config.py — Centralized configuration for the Intervention Sorter application.
 All magic values, column names, styling settings, and constants live here.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple
 from pathlib import Path
@@ -60,6 +61,9 @@ CONTACT_REPORT_COLUMN_MAP = {
     "phone_local":     "LOCAL_PHONE",
     "phone_permanent": "PERMANENT_PHONE",
     "email":           "FAU_EMAIL_ADDRESS",
+    "campus":          "CAMPUS_CODE",
+    "earned_credits":  "CUMULATIVE_EARNED_CREDITS",
+    "ftic":            "FTIC",
 }
 
 
@@ -80,6 +84,37 @@ CONTACT_REPORT_OPTIONAL_COLUMNS = [
     CONTACT_REPORT_COLUMN_MAP["phone_local"],
     CONTACT_REPORT_COLUMN_MAP["phone_permanent"],
     CONTACT_REPORT_COLUMN_MAP["email"],
+    "Campus",
+    "Total Earned Credits",
+    "FTIC Cohort",
+]
+
+# ---------------------------------------------------------------------------
+# Course-registration extract column mapping
+# Maps internal field names → actual column headers in YOUR file.
+# ---------------------------------------------------------------------------
+REGISTRATION_REPORT_COLUMN_MAP = {
+    "student_id":           "Z#",
+    "college":              "COLLEGE",
+    "major":                "MAJOR",
+    "classification":       "CLASSIFICATION",
+    "credit_hr":            "CREDIT_HR",
+    "registration_status":  "REGISTRATION_STATUS",
+    "dual_enrollment":      "DUAL_ENROLLMENT",
+    "fau_high":             "FAU_HIGH",
+    "ftic_early_admit":     "FTIC_EARLY_ADMIT",
+}
+
+# Statuses that count toward the Registered Credits sum
+REGISTRATION_STATUS_ACTIVE_VALUES = {
+    "Web Registered",
+    "Reinstate Crse",
+    "Registered",
+    "Rept Crse Srchrge Lmt Reached",
+}
+
+REGISTRATION_REPORT_REQUIRED_COLUMNS = [
+    REGISTRATION_REPORT_COLUMN_MAP["student_id"],
 ]
 
 # ---------------------------------------------------------------------------
@@ -90,6 +125,80 @@ AT_RISK_TRUE_VALUES = {
 }
 
 # ---------------------------------------------------------------------------
+# Outreach workbook schema (participating-office files)
+# Internal processing still uses OUTPUT_COLUMNS names; the exporter reshapes.
+# Attribute (HEN/EAE) and First-Generation are deferred until a source exists.
+# ---------------------------------------------------------------------------
+OUTREACH_COLUMNS = [
+    "Student ID",
+    "Student Name",
+    "College",
+    "Major",
+    "Campus",
+    "Total Earned Credits",
+    "Registered Credits",
+    "Mobile Phone",
+    "At-Risk Indicator",
+    "Alert",
+    "Reported Grade",
+    "Alert Comments",
+    "Assigned Group",
+    "FTIC Cohort",
+    "1st Outreach",
+    "1st Outreach Date",
+    "2nd Outreach",
+    "2nd Outreach Date",
+]
+
+# dest outreach column → source column on the student dataframe
+OUTREACH_FIELD_MAP = {
+    "Student ID": "Student ID",
+    "Student Name": "Student Name",
+    "College": "College",
+    "Major": "Major",
+    "Campus": "Campus",
+    "Total Earned Credits": "Total Earned Credits",
+    "Registered Credits": "Registered Credits",
+    "Mobile Phone": "Phone Number",
+    "Alert": "Alert Reasons",
+    "Reported Grade": "Grades",
+    "Alert Comments": "Comments",
+    "Assigned Group": "Matched Group",
+    "FTIC Cohort": "FTIC Cohort",
+}
+
+OUTREACH_TRACKING_COLUMNS = [
+    "1st Outreach",
+    "1st Outreach Date",
+    "2nd Outreach",
+    "2nd Outreach Date",
+]
+
+OUTREACH_OUTCOME_OPTIONS = [
+    "Spoke with Student",
+    "Spoke with Student and Sent Follow-up Email",
+    "Left Voicemail",
+    "Voicemail Not Configured",
+    "Voicemail Full",
+    "Wrong Number",
+    "Spoke with Friend/Family and Sent Follow-up Email",
+    "Withdrew from Course",
+    "No Longer Attending",
+]
+
+OUTREACH_DROPDOWN_COLUMNS = ["1st Outreach", "2nd Outreach"]
+OUTREACH_DATE_COLUMNS = ["1st Outreach Date", "2nd Outreach Date"]
+
+# Tab names treated as Student Accessibility Services (separate workbook)
+
+def is_sas_tab(tab_name: str) -> bool:
+    """True when a group tab belongs in the SAS outreach workbook."""
+    text = (tab_name or "").strip().lower()
+    if "accessibility" in text:
+        return True
+    return bool(re.search(r"(^|[^a-z0-9])sas([^a-z0-9]|$)", text))
+
+# ---------------------------------------------------------------------------
 # Output column schema — ALL tabs use this exact order
 # ---------------------------------------------------------------------------
 OUTPUT_COLUMNS = [
@@ -97,6 +206,13 @@ OUTPUT_COLUMNS = [
     "Student ID",
     "Phone Number",
     "Email",
+    "Campus",
+    "Total Earned Credits",
+    "FTIC Cohort",
+    "Registered Credits",
+    "College",
+    "Major",
+    "Classification",
     "Risk Course Count",
     "Total Absences",
     "Course Numbers",
@@ -185,15 +301,32 @@ COLUMN_WIDTH_OVERRIDES: Dict[str, int] = {
     "Student Name": 28,
     "Student ID": 14,
     "Phone Number": 16,
+    "Mobile Phone": 16,
     "Email": 30,
+    "Campus": 12,
+    "Total Earned Credits": 18,
+    "FTIC Cohort": 14,
+    "Registered Credits": 16,
+    "College": 22,
+    "Major": 28,
+    "Classification": 16,
+    "At-Risk Indicator": 14,
     "Risk Course Count": 10,
     "Total Absences": 10,
     "Course Numbers": 16,
     "Courses": 48,
     "Grades": 8,
+    "Reported Grade": 16,
     "Alert Reasons": 35,
+    "Alert": 35,
     "Comments": 120,
+    "Alert Comments": 120,
     "Matched Group": 20,
+    "Assigned Group": 20,
+    "1st Outreach": 38,
+    "1st Outreach Date": 16,
+    "2nd Outreach": 38,
+    "2nd Outreach Date": 16,
     "Match Source": 28,
     "Processing Notes": 35,
 }
@@ -242,6 +375,7 @@ LOG_LEVEL = "INFO"
 # Output filename pattern
 # ---------------------------------------------------------------------------
 OUTPUT_FILENAME_PATTERN = "ProgressReport_{timestamp}.xlsx"
+SAS_OUTPUT_FILENAME_PATTERN = "ProgressReport_SAS_{timestamp}.xlsx"
 
 # ---------------------------------------------------------------------------
 # Supported encodings for TXT control file

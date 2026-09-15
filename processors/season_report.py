@@ -286,6 +286,10 @@ class SeasonReportGenerator:
                 df.columns = [str(c).strip() for c in df.columns]
                 if "Student ID" not in df.columns:
                     continue
+                if "Mobile Phone" in df.columns and "Phone Number" not in df.columns:
+                    df = df.rename(columns={"Mobile Phone": "Phone Number"})
+                if "Assigned Group" in df.columns and "Matched Group" not in df.columns:
+                    df = df.rename(columns={"Assigned Group": "Matched Group"})
                 df["_checkpoint"] = label
                 df["_group"] = sheet
                 frames.append(df)

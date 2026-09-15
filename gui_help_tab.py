@@ -106,7 +106,9 @@ def build_help_tab(self):
     section ("📁  Output Files","#2F5496")
     para ("All output files are saved to semester-named subfolders in your output folder "
     "(e.g. output/Fall_2026/). Each workbook includes:")
-    item ("Data tabs: one per group + Risk_1_2 + Risk_3_Plus")
+    item ("Data tabs: one per group + Risk_1_2 + Risk_3_Plus, using the outreach column layout")
+    item ("SAS students are written to a separate ProgressReport_SAS workbook")
+    item ("1st/2nd Outreach columns include dropdowns for documenting call outcomes")
     item ("Summary tab with charts: students by group, contact coverage, risk distribution")
     item ("Missing_Contacts tab: students with no phone or email found")
     item ("QA_Log tab: data quality events for institutional auditing")

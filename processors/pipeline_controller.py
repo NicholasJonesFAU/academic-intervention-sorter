@@ -24,12 +24,13 @@ import pandas as pd
 
 from processors.grade_processor import GradeProcessor
 from processors.contact_processor import ContactProcessor
+from processors.registration_processor import RegistrationProcessor
 from processors.aggregator import Aggregator
 from processors.group_matcher import GroupMatcher
 from processors.exporter import Exporter
 from utils.config import (
-    OUTPUT_COLUMNS,
     OUTPUT_FILENAME_PATTERN,
+    SAS_OUTPUT_FILENAME_PATTERN,
     LOG_DATE_FORMAT,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
@@ -60,6 +61,7 @@ class PipelineInputs:
     season: str = ""
     checkpoint_type: str = "Progress Report"
     semester_groups: list = None  # [{name, file_path}] — replaces control_file + group_dir when set
+    registration_report: Optional[Path] = None
 
 @dataclass
 class PipelineResult:
@@ -70,6 +72,7 @@ class PipelineResult:
     warnings: List[str] = field(default_factory=list)
     metrics: Dict[str, Any] = field(default_factory=dict)
     output_path: Optional[Path] = None
+    sas_output_path: Optional[Path] = None
     validation_only: bool = False
 
 
@@ -162,7 +165,14 @@ class PipelineController:
             self._metrics["contact_matches"] = contact_proc.contact_match_count
             self._metrics["contact_misses"] = contact_proc.contact_miss_count
 
-            # Step 5 — Group matching
+            # Step 5b — Merge registration extract (optional)
+            self._update("Merging registration information...")
+            registration_proc = RegistrationProcessor(self._qa_log)
+            if inputs.registration_report:
+                registration_proc.load(inputs.registration_report)
+            students_df = registration_proc.merge(students_df)
+
+            # Step 6 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
             if inputs.semester_groups:
@@ -218,8 +228,16 @@ class PipelineController:
                 )
 
             # Step 6 — Export
-            self._update("Writing output workbook...")
+            self._update("Writing outreach workbooks...")
             output_path = self._resolve_output_path(inputs.output_dir)
+            timestamp_key = (
+                output_path.stem[len("ProgressReport_"):]
+                if output_path.stem.startswith("ProgressReport_")
+                else output_path.stem
+            )
+            sas_output_path = output_path.with_name(
+                SAS_OUTPUT_FILENAME_PATTERN.format(timestamp=timestamp_key)
+            )
             end_time = datetime.now()
             duration = (end_time - self._start_time).total_seconds()
 
@@ -230,19 +248,27 @@ class PipelineController:
             source_files = {
                 "Progress Report": inputs.progress_report.name,
                 "Contact Report": inputs.contact_report.name,
+                "Registration Report": (
+                    inputs.registration_report.name
+                    if inputs.registration_report
+                    else "Not provided"
+                ),
                 "Control File": inputs.control_file.name,
                 "Group Files Directory": str(inputs.group_dir),
             }
 
-            exporter = Exporter()
-            exporter.export(
+            exporter = Exporter(outreach_mode=True, split_sas=True)
+            sas_path = exporter.export(
                 group_data=group_data,
                 group_order=group_order,
                 qa_log=self._qa_log,
                 metrics=self._metrics,
                 output_path=output_path,
                 source_files=source_files,
+                sas_output_path=sas_output_path,
             )
+            if sas_path:
+                self._metrics["sas_output_filename"] = sas_path.name
 
             # Append all assigned students to tracking file
             self._append_assigned_students(group_data, group_order)
@@ -285,6 +311,12 @@ class PipelineController:
                 f"Assigned to groups: {total_assigned:,}",
                 f"Unmatched: {total_unmatched:,}",
                 f"QA events: {self._qa_log.total()}",
+                f"Other offices file: {output_path.name}",
+                (
+                    f"SAS file: {sas_path.name}"
+                    if sas_path
+                    else "SAS file: not created (no SAS group in this run)"
+                ),
             ]
             self._update("\n".join(summary_lines))
 
@@ -293,6 +325,7 @@ class PipelineController:
                 message="\n".join(summary_lines),
                 metrics=self._metrics,
                 output_path=output_path,
+                sas_output_path=sas_path,
             )
 
         except Exception as exc:
@@ -391,6 +424,10 @@ class PipelineController:
         for label, path in required:
             result.merge(validate_file_exists(path, label))
             result.merge(validate_file_readable(path, label))
+
+        if inputs.registration_report:
+            result.merge(validate_file_exists(inputs.registration_report, "Registration Report"))
+            result.merge(validate_file_readable(inputs.registration_report, "Registration Report"))
 
         if not inputs.semester_groups and not inputs.group_dir.exists():
             result.add_error(

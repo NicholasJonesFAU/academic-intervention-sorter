@@ -35,6 +35,14 @@ def build_progress_report_sorter_tab(app, tab):
     )
     app ._contact_picker .pack (fill ="x",pady =4 )
 
+    app ._registration_picker =FilePickerRow (
+    picker_frame ,
+    label ="Registration Report:",
+    filetypes =[("Excel Files","*.xlsx *.xls"),("All Files","*.*")],
+    tooltip ="Optional Excel extract with Z#, CREDIT_HR, REGISTRATION_STATUS, college/major",
+    )
+    app ._registration_picker .pack (fill ="x",pady =4 )
+
     app ._control_picker =FilePickerRow (
     picker_frame ,
     label ="Group Control File:",

@@ -88,6 +88,9 @@ def build_settings_tab(self):
     ("phone_local","Local Phone","Second preference"),
     ("phone_permanent","Permanent Phone","Third preference"),
     ("email","Email","Student email column"),
+    ("campus","Campus","Campus code column"),
+    ("earned_credits","Total Earned Credits","Cumulative earned credits"),
+    ("ftic","FTIC Cohort","FTIC flag/cohort column"),
     ]:
         add_field (inner ,f"contact.{key }",label ,cm .get (key ,""),tip )
 

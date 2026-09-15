@@ -1,11 +1,13 @@
 """
-exporter.py — Writes the final output Excel workbook.
+exporter.py — Writes the final output Excel workbook(s).
 
-Tab order:
-  Workbook_Index → Summary → <Group Tabs> → Risk_1_2 → Risk_3_Plus
-  → Missing_Contacts (when needed) → QA_Log → Processing_Manifest
+Progress-report outreach mode writes two files when a SAS group is present:
+  other offices: Workbook_Index → Summary → <non-SAS groups> → Risk_1_2 → Risk_3_Plus
+                 → Missing_Contacts (when needed) → QA_Log → Processing_Manifest
+  SAS:           Workbook_Index → Summary → <SAS group tabs>
 
-All student data tabs use the standardized OUTPUT_COLUMNS schema.
+Student data tabs use the outreach column schema (dropdowns on 1st/2nd Outreach).
+Midterm export keeps its own column schema and a single workbook.
 """
 
 import logging
@@ -25,6 +27,9 @@ from utils.config import (
     APP_NAME,
     APP_VERSION,
     OUTPUT_COLUMNS,
+    OUTREACH_COLUMNS,
+    OUTREACH_FIELD_MAP,
+    OUTREACH_TRACKING_COLUMNS,
     SUMMARY_TAB,
     QA_LOG_TAB,
     MANIFEST_TAB,
@@ -33,6 +38,7 @@ from utils.config import (
     QA_LOG_COLUMNS,
     SUMMARY_LABELS,
     STYLE,
+    is_sas_tab,
 )
 from utils.normalization import safe_excel_tab_name
 from utils.excel_utils import (
@@ -41,6 +47,7 @@ from utils.excel_utils import (
     apply_summary_formatting,
     apply_qa_formatting,
     apply_manifest_formatting,
+    apply_outreach_validation,
     make_header_fill,
     make_header_font,
     make_body_font,
@@ -67,6 +74,21 @@ BORDER_GRAY = "B7B7B7"
 class Exporter:
     """Generates the final output workbook from processed data."""
 
+    def __init__(
+        self,
+        data_columns: Optional[List[str]] = None,
+        outreach_mode: bool = False,
+        split_sas: bool = False,
+    ) -> None:
+        self.outreach_mode = outreach_mode
+        self.split_sas = split_sas
+        if data_columns is not None:
+            self.data_columns = list(data_columns)
+        elif outreach_mode:
+            self.data_columns = list(OUTREACH_COLUMNS)
+        else:
+            self.data_columns = list(OUTPUT_COLUMNS)
+
     def export(
         self,
         group_data: Dict[str, pd.DataFrame],
@@ -75,18 +97,79 @@ class Exporter:
         metrics: Dict[str, Any],
         output_path: Path,
         source_files: Dict[str, str],
-    ) -> None:
+        sas_output_path: Optional[Path] = None,
+    ) -> Optional[Path]:
         """
         Build and save the output workbook.
 
-        Args:
-            group_data:   dict mapping safe_tab_name → DataFrame
-            group_order:  ordered list of group tab names, excluding unmatched/QA/manifest
-            qa_log:       QALog instance with all QA events
-            metrics:      dict of processing metrics for summary/manifest
-            output_path:  resolved output .xlsx path
-            source_files: dict mapping label → filename for manifest
+        When split_sas is True, SAS group tabs go to sas_output_path and every
+        other tab stays in output_path. Returns the SAS path if that file was
+        written, otherwise None.
         """
+        if self.split_sas:
+            sas_order = [tab for tab in group_order if is_sas_tab(tab)]
+            other_order = [tab for tab in group_order if not is_sas_tab(tab)]
+
+            other_metrics = self._audience_metrics(
+                metrics, group_data, other_order, include_unmatched=True
+            )
+            self._write_workbook(
+                output_path=output_path,
+                group_data=group_data,
+                group_order=other_order,
+                qa_log=qa_log,
+                metrics=other_metrics,
+                source_files=source_files,
+                include_unmatched=True,
+                include_aux=True,
+            )
+
+            if not sas_order:
+                logger.info("Exporter: No SAS group tabs — SAS workbook not written.")
+                return None
+
+            sas_path = sas_output_path or output_path.with_name(
+                output_path.stem + "_SAS" + output_path.suffix
+            )
+            sas_metrics = self._audience_metrics(
+                metrics, group_data, sas_order, include_unmatched=False
+            )
+            sas_metrics["output_filename"] = sas_path.name
+            self._write_workbook(
+                output_path=sas_path,
+                group_data=group_data,
+                group_order=sas_order,
+                qa_log=qa_log,
+                metrics=sas_metrics,
+                source_files=source_files,
+                include_unmatched=False,
+                include_aux=False,
+            )
+            return sas_path
+
+        self._write_workbook(
+            output_path=output_path,
+            group_data=group_data,
+            group_order=group_order,
+            qa_log=qa_log,
+            metrics=metrics,
+            source_files=source_files,
+            include_unmatched=True,
+            include_aux=True,
+        )
+        return None
+
+    def _write_workbook(
+        self,
+        output_path: Path,
+        group_data: Dict[str, pd.DataFrame],
+        group_order: List[str],
+        qa_log: QALog,
+        metrics: Dict[str, Any],
+        source_files: Dict[str, str],
+        include_unmatched: bool,
+        include_aux: bool,
+    ) -> None:
         logger.info("Exporter: Building output workbook → '%s'", output_path.name)
 
         wb = Workbook()
@@ -95,7 +178,6 @@ class Exporter:
         used_tab_names: List[str] = []
         index_entries: List[Dict[str, Any]] = []
 
-        # 1. Summary tab
         summary_title = self._write_summary(
             wb, metrics, source_files, group_data, group_order, used_tab_names
         )
@@ -106,7 +188,6 @@ class Exporter:
             "",
         ))
 
-        # 2. Group tabs, in priority/order from the control file or semester setup
         for tab_name in group_order:
             df = group_data.get(tab_name, pd.DataFrame())
             actual_title = self._write_data_tab(wb, tab_name, df, used_tab_names)
@@ -117,51 +198,48 @@ class Exporter:
                 len(df),
             ))
 
-        # 3. Unmatched buckets
-        for bucket_name, description in [
-            (UNMATCHED_LOW_TAB, "Unmatched students with 1–2 risk courses."),
-            (UNMATCHED_HIGH_TAB, "Unmatched students with 3 or more risk courses."),
-        ]:
-            df = group_data.get(bucket_name, pd.DataFrame())
-            actual_title = self._write_data_tab(wb, bucket_name, df, used_tab_names)
-            index_entries.append(self._index_entry(
-                actual_title,
-                description,
-                "Unmatched",
-                len(df),
-            ))
+        if include_unmatched:
+            for bucket_name, description in [
+                (UNMATCHED_LOW_TAB, "Unmatched students with 1–2 risk courses."),
+                (UNMATCHED_HIGH_TAB, "Unmatched students with 3 or more risk courses."),
+            ]:
+                df = group_data.get(bucket_name, pd.DataFrame())
+                actual_title = self._write_data_tab(wb, bucket_name, df, used_tab_names)
+                index_entries.append(self._index_entry(
+                    actual_title,
+                    description,
+                    "Unmatched",
+                    len(df),
+                ))
 
-        # 4. Missing Contacts, only when needed
-        missing_title, missing_count = self._write_missing_contacts(
-            wb, group_data, group_order, used_tab_names
-        )
-        if missing_title:
+        if include_aux:
+            missing_title, missing_count = self._write_missing_contacts(
+                wb, group_data, group_order, used_tab_names
+            )
+            if missing_title:
+                index_entries.append(self._index_entry(
+                    missing_title,
+                    "Students without phone or email contact information in the contact report.",
+                    "QA",
+                    missing_count,
+                ))
+
+            qa_title = self._write_qa_log(wb, qa_log, used_tab_names)
             index_entries.append(self._index_entry(
-                missing_title,
-                "Students without phone or email contact information in the contact report.",
+                qa_title,
+                "Validation notes, data quality warnings, and processing audit items.",
                 "QA",
-                missing_count,
+                len(qa_log.entries()),
             ))
 
-        # 5. QA_Log
-        qa_title = self._write_qa_log(wb, qa_log, used_tab_names)
-        index_entries.append(self._index_entry(
-            qa_title,
-            "Validation notes, data quality warnings, and processing audit items.",
-            "QA",
-            len(qa_log.entries()),
-        ))
+            manifest_title = self._write_manifest(wb, metrics, source_files, used_tab_names)
+            index_entries.append(self._index_entry(
+                manifest_title,
+                "Technical run metadata: app version, Python version, platform, inputs, and row counts.",
+                "Manifest",
+                "",
+            ))
 
-        # 6. Processing_Manifest
-        manifest_title = self._write_manifest(wb, metrics, source_files, used_tab_names)
-        index_entries.append(self._index_entry(
-            manifest_title,
-            "Technical run metadata: app version, Python version, platform, inputs, and row counts.",
-            "Manifest",
-            "",
-        ))
-
-        # 7. Workbook index goes first, after the final sheet names are known
         self._write_workbook_index(wb, index_entries, metrics, source_files, used_tab_names)
 
         try:
@@ -172,6 +250,33 @@ class Exporter:
                 f"Cannot save workbook. The file may be open in Excel.\n"
                 f"Path: {output_path}\nError: {exc}"
             ) from exc
+
+    def _audience_metrics(
+        self,
+        metrics: Dict[str, Any],
+        group_data: Dict[str, pd.DataFrame],
+        group_order: List[str],
+        include_unmatched: bool,
+    ) -> Dict[str, Any]:
+        """Copy run metrics, scoped to the tabs written into this workbook."""
+        scoped = dict(metrics)
+        assigned = sum(len(group_data.get(tab, pd.DataFrame())) for tab in group_order)
+        unmatched = 0
+        if include_unmatched:
+            unmatched = (
+                len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame()))
+                + len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame()))
+            )
+        scoped["total_assigned"] = assigned
+        scoped["total_unmatched"] = unmatched
+        scoped["total_distinct_students"] = assigned + unmatched
+        scoped["total_risk_1_2"] = (
+            len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame())) if include_unmatched else 0
+        )
+        scoped["total_risk_3_plus"] = (
+            len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame())) if include_unmatched else 0
+        )
+        return scoped
 
     # ------------------------------------------------------------------
     # Workbook index
@@ -305,31 +410,56 @@ class Exporter:
         df: pd.DataFrame,
         used_tab_names: List[str],
     ) -> str:
-        """Write a standard data tab with OUTPUT_COLUMNS schema and return actual sheet title."""
+        """Write a standard data tab and return the actual sheet title."""
         safe = safe_excel_tab_name(tab_name, used_tab_names)
         used_tab_names.append(safe)
         ws = wb.create_sheet(title=safe)
 
+        columns = self.data_columns
         df_out = self._standardize_output_df(df)
 
-        for col_idx, col_name in enumerate(OUTPUT_COLUMNS, start=1):
+        for col_idx, col_name in enumerate(columns, start=1):
             ws.cell(row=1, column=col_idx, value=col_name)
 
         for row_idx, row in enumerate(df_out.itertuples(index=False), start=2):
             for col_idx, value in enumerate(row, start=1):
                 ws.cell(row=row_idx, column=col_idx, value=str(value) if value != "" else "")
 
-        apply_data_tab_formatting(ws, OUTPUT_COLUMNS)
+        apply_data_tab_formatting(ws, columns)
+        if self.outreach_mode:
+            apply_outreach_validation(ws, columns)
         logger.info("Exporter: Tab '%s' written — %d rows.", safe, len(df_out))
         return safe
 
     def _standardize_output_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Return a copy of df with all OUTPUT_COLUMNS present and in order."""
+        """Return a copy of df with this exporter's columns present and in order."""
         df_copy = df.copy() if df is not None else pd.DataFrame()
-        for col in OUTPUT_COLUMNS:
+        if self.outreach_mode:
+            return self._to_outreach_df(df_copy)
+
+        for col in self.data_columns:
             if col not in df_copy.columns:
                 df_copy[col] = ""
-        return df_copy[OUTPUT_COLUMNS].fillna("")
+        return df_copy[self.data_columns].fillna("")
+
+    def _to_outreach_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Reshape internal student columns into the outreach-file schema."""
+        row_count = 0 if df is None or df.empty else len(df)
+        out = pd.DataFrame(index=range(row_count))
+
+        for dest in OUTREACH_COLUMNS:
+            if dest in OUTREACH_TRACKING_COLUMNS:
+                out[dest] = ""
+            elif dest == "At-Risk Indicator":
+                out[dest] = "Yes" if row_count else ""
+            else:
+                source = OUTREACH_FIELD_MAP.get(dest, dest)
+                if row_count and source in df.columns:
+                    out[dest] = df[source].fillna("").astype(str).tolist()
+                else:
+                    out[dest] = ""
+
+        return out[OUTREACH_COLUMNS].fillna("")
 
     # ------------------------------------------------------------------
     # Summary tab

@@ -85,18 +85,20 @@ class ContactProcessor:
                 missing,
             )
 
-        # Email.
-        email_col = col["email"]
-        if email_col in df.columns:
-            df["Email"] = normalize_string_series(df[email_col])
-        else:
-            df["Email"] = ""
-            logger.warning(
-                "ContactProcessor: Email column '%s' not found — email will be blank.",
-                email_col,
-            )
+        # Email and optional student attributes — blank if the source column is missing.
+        self._load_optional_string(df, col.get("email", ""), "Email")
+        self._load_optional_string(df, col.get("campus", ""), "Campus")
+        self._load_optional_string(df, col.get("earned_credits", ""), "Total Earned Credits")
+        self._load_optional_string(df, col.get("ftic", ""), "FTIC Cohort")
 
-        df = df[["Student ID", "Phone Number", "Email"]].drop_duplicates(
+        df = df[[
+            "Student ID",
+            "Phone Number",
+            "Email",
+            "Campus",
+            "Total Earned Credits",
+            "FTIC Cohort",
+        ]].drop_duplicates(
             subset=["Student ID"],
             keep="first",
         )
@@ -124,11 +126,31 @@ class ContactProcessor:
 
         return result
 
+    def _load_optional_string(self, df: pd.DataFrame, source_col: str, dest_col: str) -> None:
+        """Normalize a source column as a string, or fill dest_col with blank if missing."""
+        if source_col and source_col in df.columns:
+            df[dest_col] = normalize_string_series(df[source_col])
+        else:
+            df[dest_col] = ""
+            if source_col:
+                logger.warning(
+                    "ContactProcessor: Column '%s' not found — %s will be blank.",
+                    source_col,
+                    dest_col,
+                )
+
     def merge(self, students_df: pd.DataFrame) -> pd.DataFrame:
+        contact_columns = [
+            "Phone Number",
+            "Email",
+            "Campus",
+            "Total Earned Credits",
+            "FTIC Cohort",
+        ]
         if self._contact_df is None:
             logger.warning("ContactProcessor: No contact data loaded. Skipping merge.")
-            students_df["Phone Number"] = ""
-            students_df["Email"] = ""
+            for col_name in contact_columns:
+                students_df[col_name] = ""
             self._contact_matches = 0
             self._contact_misses = len(students_df)
             return students_df
@@ -140,8 +162,8 @@ class ContactProcessor:
             suffixes=("", "_contact"),
         )
 
-        result["Phone Number"] = result["Phone Number"].fillna("")
-        result["Email"] = result["Email"].fillna("")
+        for col_name in contact_columns:
+            result[col_name] = result[col_name].fillna("")
 
         # IMPORTANT:
         # A contact match means the student has either a usable phone number OR email.

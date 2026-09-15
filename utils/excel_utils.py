@@ -7,8 +7,15 @@ from typing import List, Optional
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
-from utils.config import STYLE, COLUMN_WIDTH_OVERRIDES
+from utils.config import (
+    STYLE,
+    COLUMN_WIDTH_OVERRIDES,
+    OUTREACH_OUTCOME_OPTIONS,
+    OUTREACH_DROPDOWN_COLUMNS,
+    OUTREACH_DATE_COLUMNS,
+)
 
 
 
@@ -147,3 +154,39 @@ def apply_manifest_formatting(ws: Worksheet) -> None:
         for cell in row:
             if cell.value and str(cell.value).startswith("◆"):
                 cell.fill = make_header_fill(STYLE.manifest_header_color)
+
+
+def apply_outreach_validation(ws: Worksheet, columns: List[str]) -> None:
+    """Dropdowns on 1st/2nd Outreach and date format on the date columns."""
+    if not columns:
+        return
+
+    options = ",".join(OUTREACH_OUTCOME_OPTIONS)
+    dv = DataValidation(
+        type="list",
+        formula1=f'"{options}"',
+        allow_blank=True,
+        showDropDown=False,
+        showErrorMessage=True,
+        errorTitle="Invalid outreach outcome",
+        error="Please select a value from the list.",
+        promptTitle="Outreach outcome",
+        prompt="Select an outreach result",
+        showInputMessage=True,
+    )
+    applied = False
+    for col_name in OUTREACH_DROPDOWN_COLUMNS:
+        if col_name not in columns:
+            continue
+        letter = get_column_letter(columns.index(col_name) + 1)
+        dv.add(f"{letter}2:{letter}1048576")
+        applied = True
+    if applied:
+        ws.add_data_validation(dv)
+
+    for col_name in OUTREACH_DATE_COLUMNS:
+        if col_name not in columns:
+            continue
+        col_idx = columns.index(col_name) + 1
+        for row_idx in range(2, max(ws.max_row, 2) + 1):
+            ws.cell(row=row_idx, column=col_idx).number_format = "MM/DD/YYYY"

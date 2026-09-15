@@ -196,6 +196,8 @@ def collect_progress_inputs(app):
     control_file = Path(app._control_picker.path) if app._control_picker.path else Path(".")
     group_dir = Path(app._group_dir_picker.path) if app._group_dir_picker.path else Path(".")
 
+    registration_path = app._registration_picker.path
+
     return PipelineInputs(
         progress_report=Path(always_required["Progress Report"]),
         contact_report=Path(always_required["Contact Report"]),
@@ -206,6 +208,7 @@ def collect_progress_inputs(app):
         season=season,
         checkpoint_type=checkpoint,
         semester_groups=semester_groups if using_semester_groups else None,
+        registration_report=Path(registration_path) if registration_path else None,
     )
 
 
@@ -240,13 +243,19 @@ def on_progress_complete(app, result):
     if result.success:
         app._log("\n✅ " + result.message, "success")
         if not result.validation_only and result.output_path:
-            app._log(f"\n📁 Output: {result.output_path}", "success")
+            app._log(f"\n📁 Other offices: {result.output_path}", "success")
+            sas_path = getattr(result, "sas_output_path", None)
+            if sas_path:
+                app._log(f"📁 SAS: {sas_path}", "success")
+            files_text = f"Other offices:\n{result.output_path}"
+            if sas_path:
+                files_text += f"\n\nSAS:\n{sas_path}"
             if messagebox.askyesno(
                 "Processing Complete",
                 f"Processing completed successfully!\n\n"
-                f"Output file:\n{result.output_path}\n\n"
+                f"{files_text}\n\n"
                 f"{result.message}\n\n"
-                f"Open the output file now?",
+                f"Open the other-offices file now?",
             ):
                 import subprocess
                 import sys
