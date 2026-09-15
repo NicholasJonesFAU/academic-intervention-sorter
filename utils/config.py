@@ -5,7 +5,7 @@ All magic values, column names, styling settings, and constants live here.
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 
 APP_VERSION = "2.0.0"
@@ -198,6 +198,41 @@ def is_sas_tab(tab_name: str) -> bool:
         return True
     return bool(re.search(r"(^|[^a-z0-9])sas([^a-z0-9]|$)", text))
 
+
+# Timestamp produced by LOG_DATE_FORMAT, e.g. "09-15-2026_05-40PM"
+_OUTPUT_TIMESTAMP_RE = re.compile(r"\d{2}-\d{2}-\d{4}_\d{2}-\d{2}(?:AM|PM)", re.IGNORECASE)
+
+
+def sas_companion_path(path: Path) -> Optional[Path]:
+    """
+    Return the SAS workbook paired with a generated outreach workbook.
+
+    Both files are written with one shared timestamp, so the SAS name is the
+    same name with SAS inserted ahead of the timestamp. Returns None when the
+    given path is already the SAS file, or when no companion exists — which is
+    the case for workbooks generated before the SAS split.
+    """
+    stem = path.stem
+    if "SAS" in stem.upper().split("_"):
+        return None
+
+    match = _OUTPUT_TIMESTAMP_RE.search(stem)
+    if match:
+        candidate = path.with_name(
+            f"{stem[:match.start()]}SAS_{stem[match.start():]}{path.suffix}"
+        )
+    else:
+        candidate = path.with_name(f"{stem}_SAS{path.suffix}")
+
+    return candidate if candidate.exists() else None
+
+
+def outreach_workbook_paths(path: Path) -> List[Path]:
+    """A chosen checkpoint workbook plus its SAS companion, when one exists."""
+    companion = sas_companion_path(path)
+    return [path, companion] if companion else [path]
+
+
 # ---------------------------------------------------------------------------
 # Output column schema — ALL tabs use this exact order
 # ---------------------------------------------------------------------------
@@ -243,6 +278,20 @@ UNMATCHED_HIGH_THRESHOLD = 3   # >= this value goes to Risk_3_Plus
 SUMMARY_TAB = "Summary"
 QA_LOG_TAB = "QA_Log"
 MANIFEST_TAB = "Processing_Manifest"
+INDEX_TAB = "Workbook_Index"
+MISSING_CONTACTS_TAB = "Missing_Contacts"
+
+# Tabs in a generated workbook that are NOT student group data.
+# Readers (trend analyzer, season report) must skip these. Missing_Contacts
+# belongs here because it has a Student ID column and would otherwise be
+# counted as a group of its own.
+NON_GROUP_TABS = {
+    SUMMARY_TAB,
+    QA_LOG_TAB,
+    MANIFEST_TAB,
+    INDEX_TAB,
+    MISSING_CONTACTS_TAB,
+}
 
 # ---------------------------------------------------------------------------
 # Control file delimiter

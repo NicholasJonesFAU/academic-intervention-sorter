@@ -28,12 +28,12 @@ import matplotlib.patches as mpatches
 import numpy as np
 
 from processors.trend_analyzer import TrendAnalyzer
-from utils.config import SUMMARY_TAB, QA_LOG_TAB, MANIFEST_TAB
+from utils.config import NON_GROUP_TABS, outreach_workbook_paths
 from utils.excel_utils import _argb
 
 logger = logging.getLogger("intervention_sorter")
 
-SKIP_TABS   = {SUMMARY_TAB, QA_LOG_TAB, MANIFEST_TAB, "QA_Log", "Processing_Manifest"}
+SKIP_TABS   = NON_GROUP_TABS
 COLOR_BG    = "#F4F6FB"
 COLOR_DARK  = "1F3864"
 COLOR_MID_H = "2F5496"
@@ -270,89 +270,121 @@ class SeasonReportGenerator:
     # ------------------------------------------------------------------
 
     def _read_workbook(self, path: Path, label: str) -> pd.DataFrame:
-        """Read all student rows from a generated output workbook."""
-        try:
-            xl = pd.ExcelFile(path, engine="openpyxl")
-        except Exception as exc:
-            logger.warning("SeasonReport: Cannot open %s: %s", label, exc)
-            return pd.DataFrame()
-
+        """
+        Read all student rows for a checkpoint, across the chosen workbook and
+        its SAS companion.
+        """
         frames = []
-        for sheet in xl.sheet_names:
-            if sheet in SKIP_TABS:
-                continue
+        paths = outreach_workbook_paths(path)
+        if len(paths) > 1:
+            logger.info(
+                "SeasonReport: %s — including SAS companion '%s'", label, paths[1].name
+            )
+
+        for book_path in paths:
             try:
-                df = xl.parse(sheet, dtype=str)
-                df.columns = [str(c).strip() for c in df.columns]
-                if "Student ID" not in df.columns:
-                    continue
-                if "Mobile Phone" in df.columns and "Phone Number" not in df.columns:
-                    df = df.rename(columns={"Mobile Phone": "Phone Number"})
-                if "Assigned Group" in df.columns and "Matched Group" not in df.columns:
-                    df = df.rename(columns={"Assigned Group": "Matched Group"})
-                df["_checkpoint"] = label
-                df["_group"] = sheet
-                frames.append(df)
-            except Exception:
-                pass
+                # Closed explicitly — an open handle locks the workbook on Windows.
+                with pd.ExcelFile(book_path, engine="openpyxl") as xl:
+                    for sheet in list(xl.sheet_names):
+                        if sheet in SKIP_TABS:
+                            continue
+                        try:
+                            df = xl.parse(sheet, dtype=str)
+                            df.columns = [str(c).strip() for c in df.columns]
+                            if "Student ID" not in df.columns:
+                                continue
+                            if "Mobile Phone" in df.columns and "Phone Number" not in df.columns:
+                                df = df.rename(columns={"Mobile Phone": "Phone Number"})
+                            if "Assigned Group" in df.columns and "Matched Group" not in df.columns:
+                                df = df.rename(columns={"Assigned Group": "Matched Group"})
+                            df["_checkpoint"] = label
+                            df["_group"] = sheet
+                            frames.append(df)
+                        except Exception:
+                            pass
+            except Exception as exc:
+                logger.warning("SeasonReport: Cannot open %s (%s): %s",
+                               label, book_path.name, exc)
+                continue
 
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    # Detail columns carried into the master list when the source workbooks have
+    # them. Each is optional — the outreach layout, for one, has no Email column.
+    MASTER_DETAIL_COLUMNS = ["Student Name", "Phone Number", "Email", "Matched Group"]
 
     def _build_master_list(self, pr1_df, mid_df, pr2_df,
                             pr1_label, mid_label, pr2_label) -> pd.DataFrame:
         """
         One row per unique student showing which checkpoints they appeared in,
-        their group, name, contact info.
+        their group, name, contact info. Detail columns missing from the source
+        workbooks are left out individually rather than dropping all of them.
         """
-        all_frames = []
-        for df, label in [(pr1_df, pr1_label), (mid_df, mid_label), (pr2_df, pr2_label)]:
-            if not df.empty:
-                all_frames.append(df[["Student ID", "_checkpoint", "_group",
-                                       "Student Name", "Phone Number", "Email",
-                                       "Matched Group"]
-                                      ].copy() if all(c in df.columns for c in
-                                      ["Student Name", "Phone Number", "Email", "Matched Group"])
-                                   else df[["Student ID", "_checkpoint", "_group"]].copy())
-
-        if not all_frames:
+        checkpoints = [(pr1_label, pr1_df), (mid_label, mid_df), (pr2_label, pr2_df)]
+        frames = [df for _, df in checkpoints if not df.empty]
+        if not frames:
             return pd.DataFrame()
 
-        combined = pd.concat(all_frames, ignore_index=True)
+        present = [
+            col for col in self.MASTER_DETAIL_COLUMNS
+            if any(col in df.columns for df in frames)
+        ]
+        combined = pd.concat(
+            [df.reindex(columns=["Student ID"] + present) for df in frames],
+            ignore_index=True,
+        )
+        combined["Student ID"] = (
+            combined["Student ID"].fillna("").astype(str).str.strip().str.upper()
+        )
+        combined = combined[combined["Student ID"] != ""]
+        if combined.empty:
+            return pd.DataFrame()
 
-        # Pivot to get one row per student
-        pivot = combined.groupby("Student ID").agg(
-            Student_Name=("Student Name", "first") if "Student Name" in combined.columns else ("Student ID", "first"),
-            Phone=("Phone Number", "first") if "Phone Number" in combined.columns else ("Student ID", "first"),
-            Email=("Email", "first") if "Email" in combined.columns else ("Student ID", "first"),
-        ).reset_index() if all(c in combined.columns for c in ["Student Name", "Phone Number", "Email"]) else combined[["Student ID"]].drop_duplicates()
+        def first_filled(values) -> str:
+            """First non-blank value — a student may be blank at one checkpoint."""
+            for val in values:
+                text = "" if pd.isna(val) else str(val).strip()
+                if text:
+                    return text
+            return ""
+
+        if present:
+            pivot = (
+                combined.groupby("Student ID")[present]
+                .agg(first_filled)
+                .reset_index()
+            )
+        else:
+            pivot = combined[["Student ID"]].drop_duplicates().reset_index(drop=True)
 
         # Add checkpoint flags
-        for label, df in [(pr1_label, pr1_df), (mid_label, mid_df), (pr2_label, pr2_df)]:
-            if not df.empty and "Student ID" in df.columns:
-                ids_in = set(df["Student ID"].dropna().astype(str).str.strip().str.upper())
-                col_name = label[:15]  # Truncate for readability
-                pivot[col_name] = pivot["Student ID"].apply(
-                    lambda x: "✓" if str(x).strip().upper() in ids_in else ""
-                )
+        checkpoint_cols = []
+        for label, df in checkpoints:
+            if df.empty or "Student ID" not in df.columns:
+                continue
+            ids_in = set(df["Student ID"].dropna().astype(str).str.strip().str.upper())
+            # Full label, not a truncation: the defaults "Progress Report 1" and
+            # "Progress Report 2" share their first 15 characters, and a shared
+            # header would silently overwrite one checkpoint's flags.
+            col_name = label.strip() or f"Checkpoint {len(checkpoint_cols) + 1}"
+            while col_name in checkpoint_cols:
+                col_name += " "
+            pivot[col_name] = pivot["Student ID"].apply(
+                lambda x, ids=ids_in: "✓" if str(x).strip().upper() in ids else ""
+            )
+            checkpoint_cols.append(col_name)
 
-        # Count appearances
-        checkpoint_cols = [c for c in pivot.columns if c not in
-                           ["Student ID", "Student_Name", "Phone", "Email"]]
-        pivot["Appearances"] = pivot[checkpoint_cols].apply(
-            lambda row: sum(1 for v in row if v == "✓"), axis=1
+        pivot["Appearances"] = (
+            pivot[checkpoint_cols].apply(lambda row: sum(1 for v in row if v == "✓"), axis=1)
+            if checkpoint_cols else 0
         )
 
-        # Sort by appearances desc then name
         sort_cols = ["Appearances"]
-        if "Student_Name" in pivot.columns:
-            sort_cols.append("Student_Name")
-        pivot = pivot.sort_values(sort_cols, ascending=[False] + [True] * (len(sort_cols) - 1))
-
-        # Clean up column names
-        pivot = pivot.rename(columns={
-            "Student_Name": "Student Name",
-            "Phone": "Phone Number",
-        })
+        ascending = [False]
+        if "Student Name" in pivot.columns:
+            sort_cols.append("Student Name")
+            ascending.append(True)
+        pivot = pivot.sort_values(sort_cols, ascending=ascending)
 
         return pivot.reset_index(drop=True)
 

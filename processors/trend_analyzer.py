@@ -7,6 +7,9 @@ trend statistics showing how the at-risk population moved through checkpoints.
 Workbook format assumption: each group tab and unmatched bucket tab contains
 a 'Student ID' column. The analyzer reads all non-meta tabs to build the
 at-risk population at each checkpoint.
+
+SAS students live in a companion workbook, so each checkpoint reads the chosen
+file plus its SAS sibling when one was written.
 """
 
 import logging
@@ -14,12 +17,16 @@ from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 import pandas as pd
 
-from utils.config import TRAJECTORY_LABELS, SUMMARY_TAB, QA_LOG_TAB, MANIFEST_TAB
+from utils.config import (
+    TRAJECTORY_LABELS,
+    NON_GROUP_TABS,
+    outreach_workbook_paths,
+)
 
 logger = logging.getLogger("intervention_sorter")
 
 # Tabs to skip when reading student IDs from output workbooks
-SKIP_TABS = {SUMMARY_TAB, QA_LOG_TAB, MANIFEST_TAB, "Processing_Manifest", "QA_Log"}
+SKIP_TABS = NON_GROUP_TABS
 
 
 class TrendAnalyzer:
@@ -165,35 +172,48 @@ class TrendAnalyzer:
         self, path: Path, label: str
     ) -> Tuple[Set[str], Dict[str, Set[str]]]:
         """
-        Read all student IDs from a generated output workbook.
-        Returns (all_ids_set, {tab_name: ids_set}).
+        Read all student IDs for a checkpoint, across the chosen workbook and
+        its SAS companion. Returns (all_ids_set, {tab_name: ids_set}).
         """
-        try:
-            xl = pd.ExcelFile(path, engine="openpyxl")
-        except Exception as exc:
-            raise RuntimeError(f"Cannot open {label} workbook '{path.name}': {exc}") from exc
-
         all_ids: Set[str] = set()
         group_ids: Dict[str, Set[str]] = {}
 
-        for sheet_name in xl.sheet_names:
-            if sheet_name in SKIP_TABS:
-                continue
-            try:
-                df = xl.parse(sheet_name, dtype=str)
-                df.columns = [str(c).strip() for c in df.columns]
-                if "Student ID" not in df.columns:
-                    continue
-                ids = set(
-                    df["Student ID"].dropna()
-                    .astype(str).str.strip().str.upper()
-                    .replace("", pd.NA).dropna()
-                )
-                all_ids |= ids
-                group_ids[sheet_name] = ids
-            except Exception as exc:
-                logger.warning("TrendAnalyzer: Could not read tab '%s': %s", sheet_name, exc)
+        paths = outreach_workbook_paths(path)
+        if len(paths) > 1:
+            logger.info(
+                "TrendAnalyzer: %s — including SAS companion '%s'",
+                label, paths[1].name,
+            )
 
-        logger.info("TrendAnalyzer: %s workbook — %d IDs across %d tabs",
-                    label, len(all_ids), len(group_ids))
+        for book_path in paths:
+            try:
+                # Closed explicitly — an open handle locks the workbook on Windows.
+                with pd.ExcelFile(book_path, engine="openpyxl") as xl:
+                    sheet_names = list(xl.sheet_names)
+                    for sheet_name in sheet_names:
+                        if sheet_name in SKIP_TABS:
+                            continue
+                        try:
+                            df = xl.parse(sheet_name, dtype=str)
+                            df.columns = [str(c).strip() for c in df.columns]
+                            if "Student ID" not in df.columns:
+                                continue
+                            ids = set(
+                                df["Student ID"].dropna()
+                                .astype(str).str.strip().str.upper()
+                                .replace("", pd.NA).dropna()
+                            )
+                            all_ids |= ids
+                            group_ids[sheet_name] = group_ids.get(sheet_name, set()) | ids
+                        except Exception as exc:
+                            logger.warning(
+                                "TrendAnalyzer: Could not read tab '%s': %s", sheet_name, exc
+                            )
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Cannot open {label} workbook '{book_path.name}': {exc}"
+                ) from exc
+
+        logger.info("TrendAnalyzer: %s — %d IDs across %d tabs in %d workbook(s)",
+                    label, len(all_ids), len(group_ids), len(paths))
         return all_ids, group_ids

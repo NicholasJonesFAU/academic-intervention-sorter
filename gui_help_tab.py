@@ -83,6 +83,8 @@ def build_help_tab(self):
     section ("📈  Campaign Trend","#375623")
     para ("Select your three output workbooks (PR1, Midterm, PR2) to analyze how the "
     "at-risk population moved across the semester.")
+    item ("Pick only the main workbook per checkpoint — the matching SAS file is found "
+    "and included automatically, so SAS students are never left out of the counts")
     item ("Student trajectories: Persistent, Recovered Early, Recovered Late, Relapsed, etc.")
     item ("Flow analysis: carried forward, recovered, and new students at each transition")
     item ("By Group breakdown across all three checkpoints")

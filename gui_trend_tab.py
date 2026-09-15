@@ -31,21 +31,21 @@ def build_trend_tab(app):
     app ._trend_pr1_picker =FilePickerRow (
     pf ,label ="Progress Report 1:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="First progress report output (InterventionSort_...xlsx)",
+    tooltip ="PR1 output (ProgressReport_...xlsx) — the SAS file is picked up automatically",
     )
     app ._trend_pr1_picker .pack (fill ="x",pady =4 )
 
     app ._trend_mid_picker =FilePickerRow (
     pf ,label ="Midterm:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="Midterm sort output (MidtermSort_...xlsx)",
+    tooltip ="Midterm output (ProgressReport_Midterm_...xlsx) — SAS file added automatically",
     )
     app ._trend_mid_picker .pack (fill ="x",pady =4 )
 
     app ._trend_pr2_picker =FilePickerRow (
     pf ,label ="Progress Report 2:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="Second progress report output (InterventionSort_...xlsx)",
+    tooltip ="PR2 output (ProgressReport_...xlsx) — the SAS file is picked up automatically",
     )
     app ._trend_pr2_picker .pack (fill ="x",pady =4 )
 
@@ -119,21 +119,21 @@ def build_trend_tab(app):
     app ._master_pr1_picker =FilePickerRow (
     mf ,label ="Progress Report 1:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="PR1 output workbook (ProgressReport_...xlsx)",
+    tooltip ="PR1 workbook (ProgressReport_...xlsx) — the SAS file is included automatically",
     )
     app ._master_pr1_picker .pack (fill ="x",pady =3 )
 
     app ._master_mid_picker =FilePickerRow (
     mf ,label ="Midterm:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="Midterm output workbook (MidtermSort_...xlsx)",
+    tooltip ="Midterm workbook (ProgressReport_Midterm_...xlsx) — SAS file included automatically",
     )
     app ._master_mid_picker .pack (fill ="x",pady =3 )
 
     app ._master_pr2_picker =FilePickerRow (
     mf ,label ="Progress Report 2:",
     filetypes =[("Excel Files","*.xlsx"),("All Files","*.*")],
-    tooltip ="PR2 output workbook (ProgressReport_...xlsx)",
+    tooltip ="PR2 workbook (ProgressReport_...xlsx) — the SAS file is included automatically",
     )
     app ._master_pr2_picker .pack (fill ="x",pady =3 )
 

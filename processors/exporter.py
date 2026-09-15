@@ -33,6 +33,8 @@ from utils.config import (
     SUMMARY_TAB,
     QA_LOG_TAB,
     MANIFEST_TAB,
+    INDEX_TAB,
+    MISSING_CONTACTS_TAB,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
     QA_LOG_COLUMNS,
@@ -56,9 +58,6 @@ from utils.logging_utils import QALog
 from processors.summary_enhancer import SummaryEnhancer
 
 logger = logging.getLogger("intervention_sorter")
-
-INDEX_TAB = "Workbook_Index"
-MISSING_CONTACTS_TAB = "Missing_Contacts"
 
 HEADER_DARK = "1F3864"
 HEADER_BLUE = "2F5496"
