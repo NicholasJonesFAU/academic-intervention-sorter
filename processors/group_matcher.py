@@ -5,7 +5,8 @@ Responsibilities:
   1. Load and parse the control TXT file (group processing order)
   2. Load each group ID file
   3. Assign students to groups in order — first match wins
-  4. Split unmatched students into Risk_1_2 and Risk_3_Plus buckets
+  4. Split unmatched students: campus 76 by earned credits, everyone else
+     into Risk_1_2 and Risk_3_Plus
   5. Produce a complete set of per-group DataFrames with audit columns
 """
 
@@ -23,6 +24,10 @@ from utils.config import (
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
     UNMATCHED_HIGH_THRESHOLD,
+    CAMPUS_76_VALUE,
+    CAMPUS_76_CREDIT_THRESHOLD,
+    CAMPUS_76_LOW_TAB,
+    CAMPUS_76_HIGH_TAB,
     SORT_COLUMNS,
     SORT_ASCENDING,
 )
@@ -97,7 +102,7 @@ class GroupMatcher:
 
     def match(self, students_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         """
-        Assign each student to exactly one group or unmatched bucket.
+        Assign each student to exactly one group, campus-76 credit tab, or unmatched bucket.
 
         Returns:
             dict mapping safe_tab_name → DataFrame of students
@@ -144,11 +149,28 @@ class GroupMatcher:
                 len(remaining),
             )
 
-        # Split unmatched into buckets
+        # Campus 76 tries the control-file lists first. Anyone still remaining
+        # goes to the two campus-76 credit tabs instead of Risk_1_2 / Risk_3_Plus.
+        campus76_mask = self._campus76_mask(remaining)
+        campus76_df = remaining[campus76_mask].copy()
+        remaining = remaining[~campus76_mask].copy()
+
+        low_76, high_76 = self._split_campus76(campus76_df)
+        result[CAMPUS_76_LOW_TAB] = low_76
+        result[CAMPUS_76_HIGH_TAB] = high_76
+
+        # Split remaining unmatched into risk buckets
         low_df, high_df = self._split_unmatched(remaining)
         result[UNMATCHED_LOW_TAB] = low_df
         result[UNMATCHED_HIGH_TAB] = high_df
 
+        logger.info(
+            "GroupMatcher: Campus 76 unmatched — %s: %d | %s: %d",
+            CAMPUS_76_LOW_TAB,
+            len(low_76),
+            CAMPUS_76_HIGH_TAB,
+            len(high_76),
+        )
         logger.info(
             "GroupMatcher: Unmatched — Risk_1_2: %d | Risk_3_Plus: %d",
             len(low_df),
@@ -500,6 +522,45 @@ class GroupMatcher:
 
         low_df["Matched Group"] = UNMATCHED_LOW_TAB
         high_df["Matched Group"] = UNMATCHED_HIGH_TAB
+
+        return low_df, high_df
+
+    def _campus76_mask(self, df: pd.DataFrame) -> pd.Series:
+        if df.empty or "Campus" not in df.columns:
+            return pd.Series(False, index=df.index)
+        campus = df["Campus"].fillna("").astype(str).str.strip()
+        campus = campus.str.replace(r"\.0+$", "", regex=True)
+        return campus == CAMPUS_76_VALUE
+
+    def _split_campus76(
+        self, remaining: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Split unmatched campus 76 students by earned credits at 45."""
+        if remaining.empty:
+            empty = pd.DataFrame(
+                columns=list(remaining.columns)
+                + ["Matched Group", "Match Source", "Processing Notes"]
+            )
+            return empty.copy(), empty.copy()
+
+        remaining = remaining.copy()
+        remaining["Matched Group"] = ""
+        remaining["Match Source"] = "Campus 76"
+        remaining["Processing Notes"] = (
+            "Campus 76 — no control-file match; assigned by earned credits"
+        )
+
+        if "Total Earned Credits" in remaining.columns:
+            credits = pd.to_numeric(remaining["Total Earned Credits"], errors="coerce").fillna(0)
+        else:
+            credits = pd.Series(0, index=remaining.index, dtype=float)
+
+        low_mask = credits <= CAMPUS_76_CREDIT_THRESHOLD
+        low_df = self._sort_students(remaining[low_mask].copy())
+        high_df = self._sort_students(remaining[~low_mask].copy())
+
+        low_df["Matched Group"] = CAMPUS_76_LOW_TAB
+        high_df["Matched Group"] = CAMPUS_76_HIGH_TAB
 
         return low_df, high_df
 

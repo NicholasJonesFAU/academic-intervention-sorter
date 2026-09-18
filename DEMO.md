@@ -8,6 +8,7 @@ Intervention Sorter without touching real student data.
 - `sample_data/progress_report_sample.csv`
 - `sample_data/contact_report_sample.xlsx`
 - `sample_data/registration_report_sample.xlsx`
+- `sample_data/first_gen_sample.csv`
 - `sample_data/group_control.txt`
 - `sample_data/group_files/01_SAS.xlsx`
 - `sample_data/group_files/02_Athletes.xlsx`
@@ -37,6 +38,7 @@ python generate_sample_data.py
    | Progress Report | `sample_data/progress_report_sample.csv` |
    | Contact Report | `sample_data/contact_report_sample.xlsx` |
    | Registration Report | `sample_data/registration_report_sample.xlsx` |
+   | First-Gen List | `sample_data/first_gen_sample.csv` |
    | Group Control File | `sample_data/group_control.txt` |
    | Group Files Folder | `sample_data/group_files/` |
 
@@ -58,6 +60,8 @@ python test_pipeline.py
 - reading a progress report and filtering to at-risk students
 - enriching records with contact and course-registration data
 - prioritized group matching, where the first matching group wins
+- campus 76 students staying on those lists when they match, otherwise
+  splitting to Campus76_45_Under / Campus76_Over_45 by earned credits
 - preventing duplicate assignment across intervention groups
 - splitting SAS students into their own workbook
 - generating outreach workbooks with tracking columns and dropdowns

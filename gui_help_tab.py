@@ -58,7 +58,11 @@ def build_help_tab(self):
     "aggregates courses per student, and sorts them into prioritized intervention groups.")
     item ("Supports .xlsx and .csv input files")
     item ("First-match-wins group assignment — priority set by control file order")
-    item ("Unmatched students go to Risk_1_2 or Risk_3_Plus buckets")
+    item ("Campus 76 students try those lists first; unmatched campus 76 go to "
+    "Campus76_45_Under or Campus76_Over_45 by earned credits")
+    item ("Everyone else unmatched goes to Risk_1_2 or Risk_3_Plus")
+    item ("Optional First-Gen List marks matching students Yes on the report; "
+    "it does not create a group tab")
     item ("Pre-Run Check validates files before committing to a full run, including "
     "the optional Registration Report")
     item ("Exclude previously assigned students using the checkbox")
@@ -75,6 +79,7 @@ def build_help_tab(self):
     item ("Course number built from prefix + number columns (e.g. MAC + 1105 = MAC1105)")
     item ("Same outreach file layout and SAS split as the Progress Report Sorter")
     item ("Registration Report is optional — supplies Registered Credits")
+    item ("Optional First-Gen List marks matching students Yes; it does not create a group")
 
     section ("📊  Faculty Report Status","#843C0C")
     para ("Analyzes which professors have submitted progress reports. Upload the campaign "
@@ -115,7 +120,8 @@ def build_help_tab(self):
     section ("📁  Output Files","#2F5496")
     para ("All output files are saved to semester-named subfolders in your output folder "
     "(e.g. output/Fall_2026/). Each workbook includes:")
-    item ("Data tabs: one per group + Risk_1_2 + Risk_3_Plus, using the outreach column layout")
+    item ("Data tabs: one per group, Campus 76 credit tabs, Risk_1_2, and Risk_3_Plus, "
+    "using the outreach column layout")
     item ("SAS students are written to a separate ProgressReport_SAS workbook")
     item ("1st/2nd Outreach columns include dropdowns for documenting call outcomes")
     item ("Summary tab with charts: students by group, contact coverage, risk distribution")

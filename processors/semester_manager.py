@@ -84,6 +84,7 @@ class Semester:
     control_file:   str   = ""
     group_folder:   str   = ""
     registration_report: str = ""
+    first_gen_list: str = ""
 
     # Semester group definitions — priority-ordered [{name, file_path}]
     # When present, replaces control file + group folder for all runs
@@ -171,6 +172,7 @@ class SemesterManager:
         control_file:   str = "",
         group_folder:   str = "",
         registration_report: str = "",
+        first_gen_list: str = "",
     ) -> None:
         """Save file paths to the active semester (called on first run)."""
         sem = self.active_semester()
@@ -184,6 +186,8 @@ class SemesterManager:
             sem.group_folder = group_folder
         if registration_report and not sem.registration_report:
             sem.registration_report = registration_report
+        if first_gen_list and not sem.first_gen_list:
+            sem.first_gen_list = first_gen_list
         self._save()
 
 

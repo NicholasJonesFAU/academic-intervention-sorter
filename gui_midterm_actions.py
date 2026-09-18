@@ -50,6 +50,7 @@ def run_midterm_sort(app):
     control_file = Path(app._midterm_control_picker.path) if app._midterm_control_picker.path else Path(".")
     group_dir = Path(app._midterm_group_dir_picker.path) if app._midterm_group_dir_picker.path else Path(".")
     registration_path = app._midterm_registration_picker.path
+    first_gen_path = app._midterm_first_gen_picker.path
 
     inputs = MidtermPipelineInputs(
         midterm_file=Path(always_required["Midterm Grade File"]),
@@ -61,6 +62,7 @@ def run_midterm_sort(app):
         checkpoint_type="Midterm",
         semester_groups=semester_groups if using_semester_groups else None,
         registration_report=Path(registration_path) if registration_path else None,
+        first_gen_list=Path(first_gen_path) if first_gen_path else None,
     )
 
     proceed, skip_groups = app._show_group_selection_dialog(

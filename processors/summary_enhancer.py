@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.config import UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB
+from utils.config import UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB, CAMPUS_76_LOW_TAB, CAMPUS_76_HIGH_TAB
 from utils.excel_utils import _argb
 
 logger = logging.getLogger("intervention_sorter")
@@ -65,6 +65,14 @@ class SummaryEnhancer:
 
         group_counts[UNMATCHED_HIGH_TAB] = len(
             group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame())
+        )
+
+        group_counts[CAMPUS_76_LOW_TAB] = len(
+            group_data.get(CAMPUS_76_LOW_TAB, pd.DataFrame())
+        )
+
+        group_counts[CAMPUS_76_HIGH_TAB] = len(
+            group_data.get(CAMPUS_76_HIGH_TAB, pd.DataFrame())
         )
 
         group_counts = {
@@ -246,6 +254,8 @@ class SummaryEnhancer:
                 colors.append(COLOR_RED)
             elif label == UNMATCHED_LOW_TAB:
                 colors.append(COLOR_AMBER)
+            elif label in (CAMPUS_76_LOW_TAB, CAMPUS_76_HIGH_TAB):
+                colors.append(COLOR_TEAL)
             else:
                 colors.append(COLOR_ACCENT)
 

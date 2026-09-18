@@ -25,6 +25,7 @@ import pandas as pd
 from processors.grade_processor import GradeProcessor
 from processors.contact_processor import ContactProcessor
 from processors.registration_processor import RegistrationProcessor
+from processors.first_gen_processor import FirstGenProcessor
 from processors.aggregator import Aggregator
 from processors.group_matcher import GroupMatcher
 from processors.exporter import Exporter
@@ -34,6 +35,7 @@ from utils.config import (
     LOG_DATE_FORMAT,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
+    CAMPUS_76_TABS,
     get_semester_output_dir,
 )
 from utils.validation import (
@@ -62,6 +64,7 @@ class PipelineInputs:
     checkpoint_type: str = "Progress Report"
     semester_groups: list = None  # [{name, file_path}] — replaces control_file + group_dir when set
     registration_report: Optional[Path] = None
+    first_gen_list: Optional[Path] = None
 
 @dataclass
 class PipelineResult:
@@ -172,6 +175,16 @@ class PipelineController:
                 registration_proc.load(inputs.registration_report)
             students_df = registration_proc.merge(students_df)
 
+            # Step 5c — Flag first-generation students (optional list, not a group)
+            self._update("Applying first-generation list...")
+            first_gen_proc = FirstGenProcessor(self._qa_log)
+            if inputs.first_gen_list:
+                first_gen_proc.load(inputs.first_gen_list)
+            students_df = first_gen_proc.merge(students_df)
+            self._metrics["first_gen_flagged"] = int(
+                (students_df["First Generation"] == "Yes").sum()
+            )
+
             # Step 6 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
@@ -192,10 +205,14 @@ class PipelineController:
                 g.safe_tab_name for g in matcher.group_definitions
             ]
 
-            # Calculate assignment metrics
+            # Calculate assignment metrics. Campus 76 fallback tabs count as
+            # assigned (their own groups). Risk buckets are unmatched.
             total_assigned = sum(
                 len(group_data.get(tab, pd.DataFrame()))
                 for tab in group_order
+            ) + sum(
+                len(group_data.get(tab, pd.DataFrame()))
+                for tab in CAMPUS_76_TABS
             )
             total_unmatched = (
                 len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame()))
@@ -205,6 +222,12 @@ class PipelineController:
             self._metrics["total_unmatched"] = total_unmatched
             self._metrics["total_risk_1_2"] = len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame()))
             self._metrics["total_risk_3_plus"] = len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame()))
+            self._metrics["campus76_45_under"] = len(
+                group_data.get(CAMPUS_76_TABS[0], pd.DataFrame())
+            )
+            self._metrics["campus76_over_45"] = len(
+                group_data.get(CAMPUS_76_TABS[1], pd.DataFrame())
+            )
 
             logger.info(
                 "Pipeline: Assigned: %d | Unmatched: %d",
@@ -243,6 +266,11 @@ class PipelineController:
                 "Registration Report": (
                     inputs.registration_report.name
                     if inputs.registration_report
+                    else "Not provided"
+                ),
+                "First-Generation List": (
+                    inputs.first_gen_list.name
+                    if inputs.first_gen_list
                     else "Not provided"
                 ),
                 "Control File": inputs.control_file.name,
@@ -287,6 +315,11 @@ class PipelineController:
                     registration_report=(
                         str(inputs.registration_report)
                         if inputs.registration_report
+                        else ""
+                    ),
+                    first_gen_list=(
+                        str(inputs.first_gen_list)
+                        if inputs.first_gen_list
                         else ""
                     ),
                 )
@@ -377,6 +410,16 @@ class PipelineController:
             except Exception as exc:
                 issues.append(f"Group file validation error: {exc}")
 
+            if inputs.first_gen_list:
+                try:
+                    first_gen_proc = FirstGenProcessor(self._qa_log)
+                    first_gen_proc.load(inputs.first_gen_list)
+                    preview_info.append(
+                        f"First-generation list: {first_gen_proc.id_count:,} IDs loaded"
+                    )
+                except Exception as exc:
+                    issues.append(f"First-generation list validation error: {exc}")
+
             preview_info.append(f"QA events detected: {self._qa_log.total()}")
             preview_info.extend([f"  WARNING: {w}" for w in validation.warnings])
 
@@ -426,6 +469,10 @@ class PipelineController:
             result.merge(validate_file_exists(inputs.registration_report, "Registration Report"))
             result.merge(validate_file_readable(inputs.registration_report, "Registration Report"))
 
+        if inputs.first_gen_list:
+            result.merge(validate_file_exists(inputs.first_gen_list, "First-Generation List"))
+            result.merge(validate_file_readable(inputs.first_gen_list, "First-Generation List"))
+
         if not inputs.semester_groups and not inputs.group_dir.exists():
             result.add_error(
                 f"Group files directory not found: {inputs.group_dir}"
@@ -465,9 +512,9 @@ class PipelineController:
         Append ALL assigned student IDs to assigned_students.txt —
         includes group-matched AND unmatched bucket students.
         """
-        from utils.config import ASSIGNED_STUDENTS_PATH, UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB
+        from utils.config import ASSIGNED_STUDENTS_PATH, UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB, CAMPUS_76_TABS
 
-        all_tabs = list(group_order) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
+        all_tabs = list(group_order) + list(CAMPUS_76_TABS) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
         new_ids = []
         for tab in all_tabs:
             df = group_data.get(tab)

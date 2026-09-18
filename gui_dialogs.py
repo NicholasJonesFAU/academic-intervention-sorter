@@ -69,7 +69,7 @@ def show_group_selection_dialog(app, control_path: str, group_dir: str, checkpoi
 
     tk.Label(
         dialog,
-        text="Unchecked groups will be skipped — their students go to unmatched buckets.",
+        text="Unchecked groups will be skipped — their students go to unmatched or campus 76 tabs.",
         bg=theme.PANEL_BG,
         fg=theme.TEXT_MUTED,
         font=theme.FONT_SUB,
@@ -114,7 +114,7 @@ def show_group_selection_dialog(app, control_path: str, group_dir: str, checkpoi
 
     tk.Label(
         dialog,
-        text="Risk_1_2 and Risk_3_Plus are always included",
+        text="Campus 76 credit tabs, Risk_1_2, and Risk_3_Plus are always included",
         bg=theme.PANEL_BG,
         fg=theme.TEXT_MUTED,
         font=theme.FONT_SUB,

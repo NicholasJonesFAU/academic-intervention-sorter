@@ -2,7 +2,8 @@
 exporter.py — Writes the final output Excel workbook(s).
 
 Progress-report outreach mode writes two files when a SAS group is present:
-  other offices: Workbook_Index → Summary → <non-SAS groups> → Risk_1_2 → Risk_3_Plus
+  other offices: Workbook_Index → Summary → <non-SAS groups>
+                 → Campus76_45_Under → Campus76_Over_45 → Risk_1_2 → Risk_3_Plus
                  → Missing_Contacts (when needed) → QA_Log → Processing_Manifest
   SAS:           Workbook_Index → Summary → <SAS group tabs>
 
@@ -37,6 +38,9 @@ from utils.config import (
     MISSING_CONTACTS_TAB,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
+    CAMPUS_76_LOW_TAB,
+    CAMPUS_76_HIGH_TAB,
+    CAMPUS_76_TABS,
     QA_LOG_COLUMNS,
     SUMMARY_LABELS,
     STYLE,
@@ -178,7 +182,8 @@ class Exporter:
         index_entries: List[Dict[str, Any]] = []
 
         summary_title = self._write_summary(
-            wb, metrics, source_files, group_data, group_order, used_tab_names
+            wb, metrics, source_files, group_data, group_order,
+            used_tab_names, include_unmatched,
         )
         index_entries.append(self._index_entry(
             summary_title,
@@ -198,16 +203,18 @@ class Exporter:
             ))
 
         if include_unmatched:
-            for bucket_name, description in [
-                (UNMATCHED_LOW_TAB, "Unmatched students with 1–2 risk courses."),
-                (UNMATCHED_HIGH_TAB, "Unmatched students with 3 or more risk courses."),
+            for bucket_name, description, category in [
+                (CAMPUS_76_LOW_TAB, "Campus 76 students with no control-file match, 45 earned credits or under.", "Group"),
+                (CAMPUS_76_HIGH_TAB, "Campus 76 students with no control-file match, more than 45 earned credits.", "Group"),
+                (UNMATCHED_LOW_TAB, "Unmatched students with 1–2 risk courses.", "Unmatched"),
+                (UNMATCHED_HIGH_TAB, "Unmatched students with 3 or more risk courses.", "Unmatched"),
             ]:
                 df = group_data.get(bucket_name, pd.DataFrame())
                 actual_title = self._write_data_tab(wb, bucket_name, df, used_tab_names)
                 index_entries.append(self._index_entry(
                     actual_title,
                     description,
-                    "Unmatched",
+                    category,
                     len(df),
                 ))
 
@@ -262,6 +269,9 @@ class Exporter:
         assigned = sum(len(group_data.get(tab, pd.DataFrame())) for tab in group_order)
         unmatched = 0
         if include_unmatched:
+            assigned += sum(
+                len(group_data.get(tab, pd.DataFrame())) for tab in CAMPUS_76_TABS
+            )
             unmatched = (
                 len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame()))
                 + len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame()))
@@ -274,6 +284,12 @@ class Exporter:
         )
         scoped["total_risk_3_plus"] = (
             len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame())) if include_unmatched else 0
+        )
+        scoped["campus76_45_under"] = (
+            len(group_data.get(CAMPUS_76_LOW_TAB, pd.DataFrame())) if include_unmatched else 0
+        )
+        scoped["campus76_over_45"] = (
+            len(group_data.get(CAMPUS_76_HIGH_TAB, pd.DataFrame())) if include_unmatched else 0
         )
         return scoped
 
@@ -472,6 +488,7 @@ class Exporter:
         group_data: Dict[str, pd.DataFrame],
         group_order: List[str],
         used_tab_names: List[str],
+        include_unmatched: bool = True,
     ) -> str:
         safe = safe_excel_tab_name(SUMMARY_TAB, used_tab_names)
         used_tab_names.append(safe)
@@ -522,18 +539,32 @@ class Exporter:
             pct = self._percent(len(df), total_distinct)
             rows.append((f"  {tab_name}", f"{len(df)} ({pct})"))
 
+        if include_unmatched:
+            rows.extend([
+                ("", ""),
+                ("◆  CAMPUS 76  ◆", ""),
+                (
+                    SUMMARY_LABELS.get("campus76_45_under", CAMPUS_76_LOW_TAB),
+                    len(group_data.get(CAMPUS_76_LOW_TAB, pd.DataFrame())),
+                ),
+                (
+                    SUMMARY_LABELS.get("campus76_over_45", CAMPUS_76_HIGH_TAB),
+                    len(group_data.get(CAMPUS_76_HIGH_TAB, pd.DataFrame())),
+                ),
+                ("", ""),
+                ("◆  UNMATCHED BUCKETS  ◆", ""),
+                (
+                    SUMMARY_LABELS.get("total_risk_1_2", "Risk 1–2"),
+                    len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame())),
+                ),
+                (
+                    SUMMARY_LABELS.get("total_risk_3_plus", "Risk 3+"),
+                    len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame())),
+                ),
+                (SUMMARY_LABELS.get("total_unmatched", "Total Unmatched"), f"{total_unmatched} ({unmatched_pct})"),
+            ])
+
         rows.extend([
-            ("", ""),
-            ("◆  UNMATCHED BUCKETS  ◆", ""),
-            (
-                SUMMARY_LABELS.get("total_risk_1_2", "Risk 1–2"),
-                len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame())),
-            ),
-            (
-                SUMMARY_LABELS.get("total_risk_3_plus", "Risk 3+"),
-                len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame())),
-            ),
-            (SUMMARY_LABELS.get("total_unmatched", "Total Unmatched"), f"{total_unmatched} ({unmatched_pct})"),
             ("", ""),
             ("◆  SOURCE FILES  ◆", ""),
         ])
@@ -584,7 +615,7 @@ class Exporter:
         used_tab_names: List[str],
     ) -> tuple[Optional[str], int]:
         """Write a tab listing students with no phone or email found."""
-        all_tabs = list(group_order) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
+        all_tabs = list(group_order) + list(CAMPUS_76_TABS) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
         frames = []
 
         for tab in all_tabs:

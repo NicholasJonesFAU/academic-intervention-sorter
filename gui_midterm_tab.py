@@ -43,6 +43,14 @@ def build_midterm_tab(app) -> None:
     )
     app._midterm_registration_picker.pack(fill="x", pady=4)
 
+    app._midterm_first_gen_picker = FilePickerRow(
+        picker_frame,
+        label="First-Gen List:",
+        filetypes=[("Excel/CSV Files", "*.xlsx *.xls *.csv"), ("Excel Files", "*.xlsx *.xls"), ("CSV Files", "*.csv"), ("All Files", "*.*")],
+        tooltip="Optional student-ID list. Matching students are marked Yes on the report; this does not create a group.",
+    )
+    app._midterm_first_gen_picker.pack(fill="x", pady=4)
+
     app._midterm_control_picker = FilePickerRow(
         picker_frame,
         label="Group Control File:",

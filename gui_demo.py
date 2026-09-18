@@ -15,6 +15,7 @@ def load_progress_demo_files(app) -> None:
             progress_report_sample.csv
             contact_report_sample.xlsx
             registration_report_sample.xlsx
+            first_gen_sample.csv
             group_control.txt
             group_files/
     """
@@ -26,6 +27,7 @@ def load_progress_demo_files(app) -> None:
         "Progress Report": sample_dir / "progress_report_sample.csv",
         "Contact Report": sample_dir / "contact_report_sample.xlsx",
         "Registration Report": sample_dir / "registration_report_sample.xlsx",
+        "First-Gen List": sample_dir / "first_gen_sample.csv",
         "Group Control File": sample_dir / "group_control.txt",
         "Group Files Folder": group_dir,
     }
@@ -49,6 +51,8 @@ def load_progress_demo_files(app) -> None:
 
     if hasattr(app, "_registration_picker"):
         app._registration_picker.path = str(demo_paths["Registration Report"])
+    if hasattr(app, "_first_gen_picker"):
+        app._first_gen_picker.path = str(demo_paths["First-Gen List"])
 
     if hasattr(app, "_exclude_var"):
         app._exclude_var.set(False)

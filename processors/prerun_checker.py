@@ -237,6 +237,33 @@ class PreRunChecker:
 
         return results
 
+    def check_first_gen_list(self, file_path: Path,
+                             progress_ids: Optional[set] = None) -> List[CheckResult]:
+        """Validate the optional first-generation ID list. Does not create a group."""
+        from processors.first_gen_processor import FirstGenProcessor
+        from utils.logging_utils import QALog
+
+        results = []
+        try:
+            proc = FirstGenProcessor(QALog())
+            proc.load(file_path)
+        except Exception as exc:
+            return [CheckResult("error", f"Cannot open first-generation list: {exc}")]
+
+        if proc.id_count == 0:
+            results.append(CheckResult("warning",
+                "First-generation list loaded but no valid student IDs were found."))
+        else:
+            results.append(CheckResult("info",
+                f"First-generation list loaded: {proc.id_count:,} IDs"))
+
+        if progress_ids and proc.id_count:
+            overlap = proc.student_ids & progress_ids
+            results.append(CheckResult("info",
+                f"First-generation overlap with at-risk students: {len(overlap):,}"))
+
+        return results
+
     def check_group_files(self, control_path: Path,
                           group_dir: Path,
                           progress_ids: Optional[set] = None) -> List[CheckResult]:

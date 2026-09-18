@@ -8,6 +8,7 @@ Use "Load Demo Files" on the Progress Report Sorter tab, or select manually:
 - Progress Report:     sample_data/progress_report_sample.csv
 - Contact Report:      sample_data/contact_report_sample.xlsx
 - Registration Report: sample_data/registration_report_sample.xlsx
+- First-Gen List:      sample_data/first_gen_sample.csv
 - Group Control File:  sample_data/group_control.txt
 - Group Files Folder:  sample_data/group_files
 

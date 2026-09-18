@@ -57,6 +57,7 @@ def on_prerun_check_progress(app):
     missing = [k for k, v in paths.items() if not v]
     # Optional, so it is checked only when supplied and never reported missing
     registration_path = app._registration_picker.path
+    first_gen_path = app._first_gen_picker.path
     if missing:
         messagebox.showerror(
             "Missing Files",
@@ -111,6 +112,12 @@ def on_prerun_check_progress(app):
             app.after(0, app._log, "Checking registration report...", "step")
             all_results.extend(
                 checker.check_registration_report(Path(registration_path), progress_ids)
+            )
+
+        if first_gen_path:
+            app.after(0, app._log, "Checking first-generation list...", "step")
+            all_results.extend(
+                checker.check_first_gen_list(Path(first_gen_path), progress_ids)
             )
 
         app.after(0, app._log, "Checking group files...", "step")
@@ -204,6 +211,7 @@ def collect_progress_inputs(app):
     group_dir = Path(app._group_dir_picker.path) if app._group_dir_picker.path else Path(".")
 
     registration_path = app._registration_picker.path
+    first_gen_path = app._first_gen_picker.path
 
     return PipelineInputs(
         progress_report=Path(always_required["Progress Report"]),
@@ -215,6 +223,7 @@ def collect_progress_inputs(app):
         checkpoint_type=checkpoint,
         semester_groups=semester_groups if using_semester_groups else None,
         registration_report=Path(registration_path) if registration_path else None,
+        first_gen_list=Path(first_gen_path) if first_gen_path else None,
     )
 
 

@@ -24,6 +24,7 @@ from processors.midterm_processor import MidtermProcessor
 from processors.midterm_aggregator import MidtermAggregator
 from processors.contact_processor import ContactProcessor
 from processors.registration_processor import RegistrationProcessor
+from processors.first_gen_processor import FirstGenProcessor
 from processors.group_matcher import GroupMatcher
 from processors.exporter import Exporter
 from utils.config import (
@@ -32,6 +33,7 @@ from utils.config import (
     LOG_DATE_FORMAT,
     UNMATCHED_LOW_TAB,
     UNMATCHED_HIGH_TAB,
+    CAMPUS_76_TABS,
     ASSIGNED_STUDENTS_PATH,
     get_semester_output_dir,
 )
@@ -60,6 +62,7 @@ class MidtermPipelineInputs:
     checkpoint_type: str = "Midterm"
     semester_groups: list = None  # [{name, file_path}] — replaces control_file + group_dir when set
     registration_report: Optional[Path] = None
+    first_gen_list: Optional[Path] = None
 
 
 @dataclass
@@ -150,6 +153,12 @@ class MidtermPipelineController:
                 registration_proc.load(inputs.registration_report)
             students_df = registration_proc.merge(students_df)
 
+            self._update("Applying first-generation list...")
+            first_gen_proc = FirstGenProcessor(self._qa_log)
+            if inputs.first_gen_list:
+                first_gen_proc.load(inputs.first_gen_list)
+            students_df = first_gen_proc.merge(students_df)
+
             # Step 6 — Group matching
             self._update("Matching students to groups...")
             matcher = GroupMatcher(self._qa_log)
@@ -168,6 +177,8 @@ class MidtermPipelineController:
 
             total_assigned = sum(
                 len(group_data.get(tab, pd.DataFrame())) for tab in group_order
+            ) + sum(
+                len(group_data.get(tab, pd.DataFrame())) for tab in CAMPUS_76_TABS
             )
             total_unmatched = (
                 len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame())) +
@@ -177,6 +188,8 @@ class MidtermPipelineController:
             self._metrics["total_unmatched"]  = total_unmatched
             self._metrics["total_risk_1_2"]   = len(group_data.get(UNMATCHED_LOW_TAB, pd.DataFrame()))
             self._metrics["total_risk_3_plus"] = len(group_data.get(UNMATCHED_HIGH_TAB, pd.DataFrame()))
+            self._metrics["campus76_45_under"] = len(group_data.get(CAMPUS_76_TABS[0], pd.DataFrame()))
+            self._metrics["campus76_over_45"] = len(group_data.get(CAMPUS_76_TABS[1], pd.DataFrame()))
 
             # Step 7 — Export
             self._update("Writing outreach workbooks...")
@@ -194,6 +207,11 @@ class MidtermPipelineController:
                 "Registration Report": (
                     inputs.registration_report.name
                     if inputs.registration_report
+                    else "Not provided"
+                ),
+                "First-Generation List": (
+                    inputs.first_gen_list.name
+                    if inputs.first_gen_list
                     else "Not provided"
                 ),
                 "Control File":         inputs.control_file.name,
@@ -238,6 +256,11 @@ class MidtermPipelineController:
                     registration_report=(
                         str(inputs.registration_report)
                         if inputs.registration_report
+                        else ""
+                    ),
+                    first_gen_list=(
+                        str(inputs.first_gen_list)
+                        if inputs.first_gen_list
                         else ""
                     ),
                 )
@@ -301,6 +324,9 @@ class MidtermPipelineController:
         if inputs.registration_report:
             result.merge(validate_file_exists(inputs.registration_report, "Registration Report"))
             result.merge(validate_file_readable(inputs.registration_report, "Registration Report"))
+        if inputs.first_gen_list:
+            result.merge(validate_file_exists(inputs.first_gen_list, "First-Generation List"))
+            result.merge(validate_file_readable(inputs.first_gen_list, "First-Generation List"))
         if not inputs.semester_groups and not inputs.group_dir.exists():
             result.add_error(f"Group files directory not found: {inputs.group_dir}")
         # Validate the folder the run will actually write to, not a caller-supplied
@@ -333,7 +359,7 @@ class MidtermPipelineController:
         return students_df[~mask].copy().reset_index(drop=True), excluded
 
     def _append_assigned_students(self, group_data: dict, group_order: list) -> None:
-        all_tabs = list(group_order) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
+        all_tabs = list(group_order) + list(CAMPUS_76_TABS) + [UNMATCHED_LOW_TAB, UNMATCHED_HIGH_TAB]
         new_ids = []
         for tab in all_tabs:
             df = group_data.get(tab)

@@ -454,6 +454,7 @@ def check_semester_on_startup(app):
 _PREFILL_TARGETS = [
     ("contact_report", ["_contact_picker", "_midterm_contact_picker"]),
     ("registration_report", ["_registration_picker", "_midterm_registration_picker"]),
+    ("first_gen_list", ["_first_gen_picker", "_midterm_first_gen_picker"]),
     ("control_file", ["_control_picker", "_midterm_control_picker"]),
     ("group_folder", ["_group_dir_picker", "_midterm_group_dir_picker"]),
 ]

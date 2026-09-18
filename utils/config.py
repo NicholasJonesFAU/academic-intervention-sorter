@@ -135,7 +135,7 @@ PROGRESS_REPORT_AT_RISK_GRADES = {
 # ---------------------------------------------------------------------------
 # Outreach workbook schema (participating-office files)
 # Internal processing still uses OUTPUT_COLUMNS names; the exporter reshapes.
-# Attribute (HEN/EAE) and First-Generation are deferred until a source exists.
+# Attribute (HEN/EAE) is deferred until a source exists.
 # ---------------------------------------------------------------------------
 OUTREACH_COLUMNS = [
     "Student ID",
@@ -154,6 +154,7 @@ OUTREACH_COLUMNS = [
     "Alert Comments",
     "Assigned Group",
     "FTIC Cohort",
+    "First Generation",
     "1st Outreach",
     "1st Outreach Date",
     "2nd Outreach",
@@ -177,6 +178,7 @@ OUTREACH_FIELD_MAP = {
     "Alert Comments": "Comments",
     "Assigned Group": "Matched Group",
     "FTIC Cohort": "FTIC Cohort",
+    "First Generation": "First Generation",
 }
 
 OUTREACH_TRACKING_COLUMNS = [
@@ -284,6 +286,14 @@ UNMATCHED_LOW_TAB = "Risk_1_2"
 UNMATCHED_HIGH_TAB = "Risk_3_Plus"
 UNMATCHED_HIGH_THRESHOLD = 3   # >= this value goes to Risk_3_Plus
 
+# Campus 76 students try control-file groups first. If they do not match,
+# they go to these two credit-based tabs instead of the generic unmatched buckets.
+CAMPUS_76_VALUE = "76"
+CAMPUS_76_CREDIT_THRESHOLD = 45
+CAMPUS_76_LOW_TAB = "Campus76_45_Under"
+CAMPUS_76_HIGH_TAB = "Campus76_Over_45"
+CAMPUS_76_TABS = (CAMPUS_76_LOW_TAB, CAMPUS_76_HIGH_TAB)
+
 # ---------------------------------------------------------------------------
 # Special tab names
 # ---------------------------------------------------------------------------
@@ -385,6 +395,7 @@ COLUMN_WIDTH_OVERRIDES: Dict[str, int] = {
     "Alert Comments": 120,
     "Matched Group": 20,
     "Assigned Group": 20,
+    "First Generation": 16,
     "1st Outreach": 38,
     "1st Outreach Date": 16,
     "2nd Outreach": 38,
@@ -416,6 +427,8 @@ SUMMARY_LABELS = {
     "total_unmatched": "Total Unmatched Students",
     "total_risk_1_2": "Students in Risk_1_2",
     "total_risk_3_plus": "Students in Risk_3_Plus",
+    "campus76_45_under": "Campus 76 — 45 credits and under",
+    "campus76_over_45": "Campus 76 — more than 45 credits",
     "contact_matches": "Students with Contact Info",
     "contact_misses": "Students Missing Contact Info",
     "processing_timestamp": "Processing Timestamp",

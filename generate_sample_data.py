@@ -12,6 +12,7 @@ Creates:
   - sample_data/progress_report_sample.csv
   - sample_data/contact_report_sample.xlsx
   - sample_data/registration_report_sample.xlsx
+  - sample_data/first_gen_sample.csv
   - sample_data/group_control.txt
   - sample_data/group_files/*.xlsx
 """
@@ -176,8 +177,6 @@ def main() -> None:
         })
 
     contact_path = SAMPLE_DIR / "contact_report_sample.xlsx"
-    pd.DataFrame(contact_rows).to_excel(contact_path, index=False)
-    print(f"  contact report: {len(contact_rows)} rows -> {contact_path.name}")
 
     r = REGISTRATION_REPORT_COLUMN_MAP
     statuses = sorted(REGISTRATION_STATUS_ACTIVE_VALUES) + ["Dropped", "Withdrawn"]
@@ -216,6 +215,23 @@ def main() -> None:
         pd.DataFrame({"Student ID": ids}).to_excel(path, index=False)
         print(f"  group '{tab_name}': {len(ids)} IDs -> {filename}")
 
+    # Force two leftover students onto campus 76 so the credit-split tabs
+    # appear in the demo. Do this after all RNG so other files stay stable.
+    grouped_ids = {sid for chunk in slices for sid in chunk}
+    leftover = [sid for sid in shuffled if sid not in grouped_ids]
+    leftover_with_contact = [sid for sid in leftover if sid not in no_contact]
+    campus76_demo = leftover_with_contact[:2]
+    campus76_credits = [20, 60]
+    by_id = {row[c["student_id"]]: row for row in contact_rows}
+    for sid, credits in zip(campus76_demo, campus76_credits):
+        by_id[sid][c["campus"]] = "76"
+        by_id[sid][c["earned_credits"]] = credits
+
+    pd.DataFrame(contact_rows).to_excel(contact_path, index=False)
+    print(f"  contact report: {len(contact_rows)} rows -> {contact_path.name}")
+    if campus76_demo:
+        print(f"  campus 76 leftover demo: {len(campus76_demo)} unmatched students")
+
     control_path = SAMPLE_DIR / "group_control.txt"
     control_path.write_text(
         "".join(
@@ -225,6 +241,13 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"  control file -> {control_path.name}")
+
+    # First-gen list is a flag, not a group. Every 4th student, including some
+    # with no contact row, so the Yes/blank split is visible in the output.
+    first_gen_ids = [sid for i, sid in enumerate(student_ids) if i % 4 == 0]
+    first_gen_path = SAMPLE_DIR / "first_gen_sample.csv"
+    pd.DataFrame({"Student ID": first_gen_ids}).to_csv(first_gen_path, index=False)
+    print(f"  first-gen list: {len(first_gen_ids)} IDs -> {first_gen_path.name}")
 
     print(f"\nDemo data written to {SAMPLE_DIR}")
 
