@@ -91,6 +91,7 @@ def build_settings_tab(self):
     ("campus","Campus","Campus code column"),
     ("earned_credits","Total Earned Credits","Cumulative earned credits"),
     ("ftic","FTIC Cohort","FTIC flag/cohort column"),
+    ("major","Major","MAJOR column on the contact extract"),
     ]:
         add_field (inner ,f"contact.{key }",label ,cm .get (key ,""),tip )
 

@@ -64,6 +64,7 @@ CONTACT_REPORT_COLUMN_MAP = {
     "campus":          "CAMPUS_CODE",
     "earned_credits":  "CUMULATIVE_EARNED_CREDITS",
     "ftic":            "FTIC",
+    "major":           "MAJOR",
 }
 
 
@@ -87,6 +88,7 @@ CONTACT_REPORT_OPTIONAL_COLUMNS = [
     "Campus",
     "Total Earned Credits",
     "FTIC Cohort",
+    "Major",
 ]
 
 # ---------------------------------------------------------------------------

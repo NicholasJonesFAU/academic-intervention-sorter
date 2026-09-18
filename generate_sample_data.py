@@ -171,6 +171,8 @@ def main() -> None:
             c["earned_credits"]:  random.randint(0, 90),
             # A cohort term means FTIC; blank means not FTIC
             c["ftic"]:            random.choice(["202608", "202508", "", ""]),
+            # Deterministic so adding this column does not reshuffle other RNG fields
+            c["major"]:           COLLEGES[student_ids.index(sid) % len(COLLEGES)][1],
         })
 
     contact_path = SAMPLE_DIR / "contact_report_sample.xlsx"

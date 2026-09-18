@@ -176,8 +176,9 @@ class RegistrationProcessor:
             suffixes=("", "_registration"),
         )
 
-        # The midterm file supplies its own College/Major/Classification, so a
-        # column the caller already filled wins; registration only fills blanks.
+        # Contact (and midterm) may already have supplied College/Major/
+        # Classification. A column the caller already filled wins;
+        # registration only fills blanks.
         for col_name in REGISTRATION_COLUMNS:
             incoming = f"{col_name}_registration"
             if incoming in result.columns:

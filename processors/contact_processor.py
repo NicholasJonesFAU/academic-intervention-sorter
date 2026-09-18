@@ -90,6 +90,7 @@ class ContactProcessor:
         self._load_optional_string(df, col.get("campus", ""), "Campus")
         self._load_optional_string(df, col.get("earned_credits", ""), "Total Earned Credits")
         self._load_optional_string(df, col.get("ftic", ""), "FTIC Cohort")
+        self._load_optional_string(df, col.get("major", ""), "Major")
 
         df = df[[
             "Student ID",
@@ -98,6 +99,7 @@ class ContactProcessor:
             "Campus",
             "Total Earned Credits",
             "FTIC Cohort",
+            "Major",
         ]].drop_duplicates(
             subset=["Student ID"],
             keep="first",
@@ -146,11 +148,13 @@ class ContactProcessor:
             "Campus",
             "Total Earned Credits",
             "FTIC Cohort",
+            "Major",
         ]
         if self._contact_df is None:
             logger.warning("ContactProcessor: No contact data loaded. Skipping merge.")
             for col_name in contact_columns:
-                students_df[col_name] = ""
+                if col_name not in students_df.columns:
+                    students_df[col_name] = ""
             self._contact_matches = 0
             self._contact_misses = len(students_df)
             return students_df
@@ -162,8 +166,20 @@ class ContactProcessor:
             suffixes=("", "_contact"),
         )
 
+        # Contact values win when present (Major comes from the Active Students
+        # extract). A column the caller already filled is kept only if contact
+        # left it blank.
         for col_name in contact_columns:
-            result[col_name] = result[col_name].fillna("")
+            incoming = f"{col_name}_contact"
+            if incoming in result.columns:
+                existing = result[col_name].fillna("").astype(str).str.strip()
+                incoming_vals = result[incoming].fillna("").astype(str).str.strip()
+                result[col_name] = incoming_vals.where(incoming_vals != "", existing)
+                result = result.drop(columns=[incoming])
+            elif col_name in result.columns:
+                result[col_name] = result[col_name].fillna("")
+            else:
+                result[col_name] = ""
 
         # IMPORTANT:
         # A contact match means the student has either a usable phone number OR email.

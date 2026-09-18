@@ -152,8 +152,12 @@ class PreRunChecker:
                 results.append(CheckResult("info",
                     "All at-risk students have a contact record. ✓"))
 
-        # Check email and phone columns
-        for label, key in [("Email", "email"), ("Cellular", "phone_cellular")]:
+        # Check email, phone, and major columns
+        for label, key in [
+            ("Email", "email"),
+            ("Cellular", "phone_cellular"),
+            ("Major", "major"),
+        ]:
             c = col.get(key, "")
             if c and c not in df.columns:
                 results.append(CheckResult("warning",
