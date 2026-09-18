@@ -388,13 +388,16 @@ class GroupMatcher:
           - Malformed rows
         """
         try:
-            df = pd.read_excel(
-                file_path,
-                dtype=str,
-                keep_default_na=False,
-                engine="openpyxl",
-                header=None,     # Always read without header assumption
-            )
+            suffix = file_path.suffix.lower()
+            if suffix == ".csv":
+                df = pd.read_csv(
+                    file_path, dtype=str, keep_default_na=False, header=None,
+                )
+            else:
+                df = pd.read_excel(
+                    file_path, dtype=str, keep_default_na=False,
+                    engine="openpyxl", header=None,
+                )
         except Exception as exc:
             logger.error(
                 "GroupMatcher: Cannot read group file '%s': %s", file_path.name, exc
@@ -414,6 +417,8 @@ class GroupMatcher:
 
         valid_ids: set = set()
         for raw in raw_ids:
+            if " " in raw or ":" in raw:
+                continue
             from utils.normalization import normalize_student_id
             normalized = normalize_student_id(raw)
 

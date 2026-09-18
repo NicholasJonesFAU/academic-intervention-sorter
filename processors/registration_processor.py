@@ -92,9 +92,16 @@ class RegistrationProcessor:
 
         status_col = col["registration_status"]
         if status_col in df.columns:
-            is_active = normalize_string_series(df[status_col]).isin(
-                REGISTRATION_STATUS_ACTIVE_VALUES
-            )
+            status_values = normalize_string_series(df[status_col]).str.strip("*").str.strip()
+            is_active = status_values.isin(REGISTRATION_STATUS_ACTIVE_VALUES)
+            seen = set(status_values.unique())
+            unmapped = seen - REGISTRATION_STATUS_ACTIVE_VALUES
+            if unmapped:
+                self.qa_log.log(
+                    "UNMAPPED_REGISTRATION_STATUS",
+                    detail=f"Statuses not counted as active: {sorted(unmapped)}",
+                    source_file=file_path.name,
+                )
         else:
             is_active = pd.Series(False, index=df.index)
             logger.warning(
